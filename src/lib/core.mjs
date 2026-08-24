@@ -37,6 +37,21 @@ export function moveItem(items, sourceId, targetId) {
   return next
 }
 
+export function moveCategory(items, sourceId, parentId, targetId = '') {
+  const from = items.findIndex(item => item.id === sourceId)
+  if (from < 0 || sourceId === targetId) return items
+  const next = items.slice()
+  const category = { ...next.splice(from, 1)[0] }
+  category.parentId = parentId
+  const target = targetId ? next.findIndex(item => item.id === targetId) : -1
+  if (target >= 0) next.splice(target, 0, category)
+  else {
+    const sibling = next.reduce((last, item, index) => item.parentId === parentId ? index : last, -1)
+    next.splice(sibling + 1, 0, category)
+  }
+  return next
+}
+
 export function validateState(value) {
   if (!value || value.version !== 1 || !Array.isArray(value.categories) || !Array.isArray(value.bookmarks)) {
     throw new Error('不是有效的 FunLink 备份')

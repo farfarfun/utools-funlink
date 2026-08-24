@@ -1,5 +1,5 @@
 import { computed, reactive, ref } from 'vue'
-import { bookmarkMatches, initials, moveItem, parseBookmarkHtml, validateState } from '../lib/core.mjs'
+import { bookmarkMatches, initials, moveCategory, moveItem, parseBookmarkHtml, validateState } from '../lib/core.mjs'
 import firstData from '../data/firstData.json'
 
 const STORAGE_KEY = 'funlink-state-v1'
@@ -224,26 +224,28 @@ export function useFunLink() {
   }
 
   function categoryCount(categoryId) {
-    const ids = new Set([categoryId, ...childrenOf(categoryId).map(item => item.id)])
-    return state.value.bookmarks.filter(bookmark => !bookmark.deletedAt && categoryIdsOf(bookmark).some(id => ids.has(id))).length
+    return state.value.bookmarks.filter(bookmark => !bookmark.deletedAt && categoryIdsOf(bookmark).includes(categoryId)).length
   }
 
-  function addCategory(name, parentId) {
+  function addCategory(name, parentId, afterId = '') {
     if (!name.trim()) return
-    state.value.categories.push({ id: `category-${Date.now()}`, name: name.trim(), parentId })
+    const category = { id: `category-${Date.now()}`, name: name.trim(), parentId, tabPosition: 'top' }
+    const index = afterId ? state.value.categories.findIndex(item => item.id === afterId) : -1
+    if (index >= 0) state.value.categories.splice(index + 1, 0, category)
+    else state.value.categories.push(category)
     saveState()
   }
 
-  function categoryAction(id, action) {
+  function categoryAction(id, action, value) {
     const category = state.value.categories.find(item => item.id === id)
     if (!category) return
     if (action === 'rename') {
-      const name = window.prompt('新的分类名称', category.name)?.trim()
+      const name = (typeof value === 'string' ? value : window.prompt('新的分类名称', category.name))?.trim()
       if (name) category.name = name
     }
     if (action === 'delete') {
       const descendants = new Set([id, ...childrenOf(id).map(item => item.id)])
-      if (!window.confirm(`删除“${category.name}”？分类中的网址会移到收集箱。`)) return
+      if (value !== true && !window.confirm(`删除“${category.name}”？分类中的网址会移到收集箱。`)) return
       state.value.categories = state.value.categories.filter(item => !descendants.has(item.id))
       state.value.bookmarks.forEach(bookmark => {
         bookmark.categoryIds = categoryIdsOf(bookmark).filter(categoryId => !descendants.has(categoryId))
@@ -261,6 +263,8 @@ export function useFunLink() {
         state.value.categories[targetIndex] = category
       }
     }
+    if (action === 'position' && ['left', 'right', 'top', 'bottom'].includes(value)) category.tabPosition = value
+    if (action === 'move' && value) state.value.categories = moveCategory(state.value.categories, id, value.parentId, value.targetId)
     saveState()
   }
 
