@@ -14,15 +14,18 @@ watch(() => [props.x, props.y, props.items], async () => {
     left: `${Math.max(8, Math.min(props.x, window.innerWidth - width - 8))}px`,
     top: `${Math.max(8, Math.min(props.y, window.innerHeight - height - 8))}px`,
   }
-  menu.value?.querySelector('button')?.focus()
 }, { immediate: true })
 </script>
 
 <template>
   <div ref="menu" class="context-menu" role="menu" :style="position" @click.stop>
-    <template v-for="(item, index) in items" :key="item.action">
-      <span v-if="index === items.length - 1" class="menu-divider" />
-      <button type="button" role="menuitem" @click="emit('select', item.action)">{{ item.label }}</button>
+    <template v-for="item in items" :key="item.action">
+      <button type="button" role="menuitem" @click="emit('select', item.action)">
+        <i v-if="item.icon" class="iconfont menu-icon" :class="item.icon" aria-hidden="true" />
+        <span>{{ item.label }}</span>
+        <span v-if="item.arrow" class="menu-arrow" aria-hidden="true">›</span>
+      </button>
+      <span v-if="item.divided" class="menu-divider" />
     </template>
   </div>
 </template>

@@ -1,47 +1,56 @@
 import { computed, reactive, ref } from 'vue'
 import { bookmarkMatches, initials, moveItem, parseBookmarkHtml, validateState } from '../lib/core.mjs'
+import firstData from '../data/firstData.json'
 
 const STORAGE_KEY = 'funlink-state-v1'
 const COLORS = ['#16b8c7', '#2563eb', '#7c3aed', '#db2777', '#e85d3f', '#0f9f6e', '#64748b']
+const SPECIAL_CATEGORY_IDS = new Set(['cat@default', 'cat@dustbin', 'cat@fly', 'cat@often'])
 
-function sample(id, title, url, description, categoryId, color, icon) {
-  return { id, title, url, description, categoryId, color, iconType: 'text', icon, browser: '', favorite: false, quick: false, note: '', deletedAt: null }
+function categoryIdsOf(bookmark) {
+  return bookmark.categoryIds || (bookmark.categoryId ? [bookmark.categoryId] : [])
 }
 
 function seedState() {
+  const categories = firstData
+    .filter(item => item.label && !SPECIAL_CATEGORY_IDS.has(item._id))
+    .map(item => ({
+      id: item._id,
+      name: item.label,
+      parentId: item.pid,
+      tabPosition: item.tabPosition || 'top',
+    }))
+  const bookmarks = firstData
+    .filter(item => item.title && item.url)
+    .map(item => {
+      const categoryIds = item.catIds || []
+      const categoryId = categoryIds.find(id => !SPECIAL_CATEGORY_IDS.has(id)) || ''
+      return {
+        id: item._id,
+        title: item.title,
+        url: item.url,
+        description: item.desc || '',
+        categoryId,
+        categoryIds,
+        color: item.icon?.textColor || COLORS[0],
+        iconType: item.icon?.type || 'text',
+        icon: item.icon?.text || initials(item.title),
+        iconSize: item.icon?.fontSize || 16,
+        iconData: item.icon?.data || '',
+        browser: '',
+        favorite: Boolean(item.isOften),
+        quick: Boolean(item.isFly),
+        hasNote: Boolean(item.hasNote),
+        note: '',
+        deletedAt: categoryIds.includes('cat@dustbin') ? 1 : null,
+      }
+    })
+
   return {
     version: 1,
     theme: 'system',
-    currentView: 'category:design-assets',
-    categories: [
-      { id: 'life', name: '生活', parentId: '' },
-      { id: 'life-tools', name: '工具', parentId: 'life' },
-      { id: 'life-reading', name: '阅读', parentId: 'life' },
-      { id: 'design', name: '设计', parentId: '' },
-      { id: 'design-assets', name: '素材', parentId: 'design' },
-      { id: 'design-community', name: '社区', parentId: 'design' },
-      { id: 'design-icons', name: '图标', parentId: 'design' },
-      { id: 'frontend', name: '前端', parentId: '' },
-      { id: 'frontend-tools', name: '工具', parentId: 'frontend' },
-      { id: 'frontend-frameworks', name: '框架', parentId: 'frontend' },
-      { id: 'frontend-docs', name: '文档', parentId: 'frontend' },
-      { id: 'work', name: '工作', parentId: '' },
-      { id: 'work-tools', name: '协作', parentId: 'work' },
-    ],
-    bookmarks: [
-      sample('figma', 'Figma', 'https://www.figma.com/', '协作式界面设计工具', 'design-assets', '#f24e1e', 'Fi'),
-      sample('iconfont', 'iconfont', 'https://www.iconfont.cn/', '阿里巴巴矢量图标库', 'design-icons', '#00c9b7', 'iF'),
-      sample('unsplash', 'Unsplash', 'https://unsplash.com/', '免费高质量图片素材', 'design-assets', '#111827', 'Un'),
-      sample('pexels', 'Pexels', 'https://www.pexels.com/', '免费图片和视频素材', 'design-assets', '#05a081', 'Pe'),
-      sample('coolors', 'Coolors', 'https://coolors.co/', '快速生成配色方案', 'design-assets', '#6658d3', 'Co'),
-      sample('dribbble', 'Dribbble', 'https://dribbble.com/', '设计师作品与灵感社区', 'design-community', '#ea4c89', 'Dr'),
-      sample('github', 'GitHub', 'https://github.com/', '代码托管与协作平台', 'frontend-tools', '#24292f', 'GH'),
-      sample('mdn', 'MDN Web Docs', 'https://developer.mozilla.org/zh-CN/', '权威 Web 开发文档', 'frontend-docs', '#2563eb', 'MD'),
-      sample('vue', 'Vue.js', 'https://cn.vuejs.org/', '渐进式 JavaScript 框架', 'frontend-frameworks', '#42b883', 'V'),
-      sample('vite', 'Vite', 'https://cn.vite.dev/', '下一代前端构建工具', 'frontend-tools', '#7c3aed', 'Vi'),
-      sample('notion', 'Notion', 'https://www.notion.so/', '笔记、知识库与项目协作', 'work-tools', '#111827', 'N'),
-      sample('utools', 'uTools 官网', 'https://www.u-tools.cn/', '新一代效率工具平台', 'life-tools', '#5966e9', 'uT'),
-    ],
+    currentView: 'category:cat_demo',
+    categories,
+    bookmarks,
   }
 }
 
@@ -76,6 +85,7 @@ export function useFunLink() {
   })
   const childrenOf = parentId => state.value.categories.filter(category => category.parentId === parentId)
   const secondaryCategories = computed(() => childrenOf(activeRootId.value))
+  const secondaryPosition = computed(() => state.value.categories.find(category => category.id === activeRootId.value)?.tabPosition || 'top')
   const trashCount = computed(() => state.value.bookmarks.filter(bookmark => bookmark.deletedAt).length)
   const currentBookmarks = computed(() => {
     const active = state.value.bookmarks.filter(bookmark => !bookmark.deletedAt)
@@ -85,25 +95,17 @@ export function useFunLink() {
     else if (state.value.currentView === 'all') bookmarks = active
     else if (state.value.currentView === 'favorites') bookmarks = active.filter(bookmark => bookmark.favorite)
     else if (state.value.currentView === 'quick') bookmarks = active.filter(bookmark => bookmark.quick)
-    else if (state.value.currentView === 'inbox') bookmarks = active.filter(bookmark => !bookmark.categoryId)
+    else if (state.value.currentView === 'inbox') bookmarks = active.filter(bookmark => categoryIdsOf(bookmark).includes('cat@default') || !categoryIdsOf(bookmark).length)
     else if (state.value.currentView === 'trash') bookmarks = state.value.bookmarks.filter(bookmark => bookmark.deletedAt)
     else {
       const category = state.value.categories.find(item => item.id === activeCategoryId.value)
       const ids = category && !category.parentId
         ? new Set([category.id, ...childrenOf(category.id).map(item => item.id)])
         : new Set([activeCategoryId.value])
-      bookmarks = active.filter(bookmark => ids.has(bookmark.categoryId))
+      bookmarks = active.filter(bookmark => categoryIdsOf(bookmark).some(id => ids.has(id)))
     }
     return bookmarks.filter(bookmark => bookmarkMatches(bookmark, search.value))
   })
-  const viewTitle = computed(() => {
-    if (search.value.trim()) return '搜索结果'
-    const names = { all: '全部网址', favorites: '常用', quick: '网页快开', inbox: '收集箱', trash: '废纸篓' }
-    return names[state.value.currentView]
-      || state.value.categories.find(category => category.id === activeCategoryId.value)?.name
-      || '收集箱'
-  })
-  const viewMeta = computed(() => `${search.value.trim() ? '找到 ' : ''}${currentBookmarks.value.length} 张卡片`)
   const defaultCategoryId = computed(() => state.value.categories.some(category => category.id === activeCategoryId.value) ? activeCategoryId.value : '')
 
   function saveState() {
@@ -117,7 +119,11 @@ export function useFunLink() {
   }
 
   function setView(view) {
-    state.value.currentView = view
+    if (view.startsWith('category:')) {
+      const categoryId = view.slice(9)
+      const firstChild = childrenOf(categoryId)[0]
+      state.value.currentView = `category:${firstChild?.id || categoryId}`
+    } else state.value.currentView = view
     search.value = ''
     saveState()
   }
@@ -136,7 +142,7 @@ export function useFunLink() {
   function saveBookmark(input, afterId = null) {
     const id = input.id || `bookmark-${Date.now()}`
     const previous = state.value.bookmarks.find(bookmark => bookmark.id === id)
-    const bookmark = { ...previous, ...input, id, note: previous?.note || '', deletedAt: null }
+    const bookmark = { ...previous, ...input, id, categoryIds: input.categoryId ? [input.categoryId] : ['cat@default'], note: previous?.note || '', deletedAt: null }
     if (previous) state.value.bookmarks[state.value.bookmarks.indexOf(previous)] = bookmark
     else if (afterId) state.value.bookmarks.splice(state.value.bookmarks.findIndex(item => item.id === afterId) + 1, 0, bookmark)
     else state.value.bookmarks.push(bookmark)
@@ -178,7 +184,7 @@ export function useFunLink() {
   }
 
   function moveToTrash(bookmark) {
-    bookmark.previousCategoryId = bookmark.categoryId
+    bookmark.previousCategoryIds = categoryIdsOf(bookmark)
     bookmark.deletedAt = Date.now()
     bookmark.quick = false
     syncQuickFeature(bookmark)
@@ -187,9 +193,10 @@ export function useFunLink() {
   }
 
   function restoreBookmark(bookmark) {
-    bookmark.categoryId = state.value.categories.some(category => category.id === bookmark.previousCategoryId) ? bookmark.previousCategoryId : ''
+    bookmark.categoryIds = (bookmark.previousCategoryIds || []).filter(id => id === 'cat@default' || state.value.categories.some(category => category.id === id))
+    bookmark.categoryId = bookmark.categoryIds.find(id => id !== 'cat@default') || ''
     bookmark.deletedAt = null
-    delete bookmark.previousCategoryId
+    delete bookmark.previousCategoryIds
     saveState()
     showToast('网址已恢复')
   }
@@ -218,7 +225,7 @@ export function useFunLink() {
 
   function categoryCount(categoryId) {
     const ids = new Set([categoryId, ...childrenOf(categoryId).map(item => item.id)])
-    return state.value.bookmarks.filter(bookmark => !bookmark.deletedAt && ids.has(bookmark.categoryId)).length
+    return state.value.bookmarks.filter(bookmark => !bookmark.deletedAt && categoryIdsOf(bookmark).some(id => ids.has(id))).length
   }
 
   function addCategory(name, parentId) {
@@ -238,7 +245,10 @@ export function useFunLink() {
       const descendants = new Set([id, ...childrenOf(id).map(item => item.id)])
       if (!window.confirm(`删除“${category.name}”？分类中的网址会移到收集箱。`)) return
       state.value.categories = state.value.categories.filter(item => !descendants.has(item.id))
-      state.value.bookmarks.forEach(bookmark => { if (descendants.has(bookmark.categoryId)) bookmark.categoryId = '' })
+      state.value.bookmarks.forEach(bookmark => {
+        bookmark.categoryIds = categoryIdsOf(bookmark).filter(categoryId => !descendants.has(categoryId))
+        bookmark.categoryId = bookmark.categoryIds[0] || ''
+      })
       if (descendants.has(activeCategoryId.value)) state.value.currentView = 'inbox'
     }
     if (action === 'up' || action === 'down') {
@@ -299,6 +309,7 @@ export function useFunLink() {
         id: `bookmark-import-${Date.now()}-${index}`,
         description: displayHost(bookmark.url),
         categoryId,
+        categoryIds: [categoryId],
         color: COLORS[index % COLORS.length],
         iconType: 'text',
         icon: initials(bookmark.title),
@@ -354,8 +365,8 @@ export function useFunLink() {
   applyTheme()
 
   return {
-    state, search, toast, roots, activeCategoryId, activeRootId, secondaryCategories, trashCount,
-    currentBookmarks, viewTitle, viewMeta, defaultCategoryId, childrenOf, categoryCount,
+    state, search, toast, roots, activeCategoryId, activeRootId, secondaryCategories, secondaryPosition, trashCount,
+    currentBookmarks, defaultCategoryId, childrenOf, categoryCount,
     setView, saveBookmark, saveNote, openLink, toggleFavorite, toggleQuick, moveToTrash,
     restoreBookmark, deleteBookmark, emptyTrash, reorderBookmarks, addCategory, categoryAction,
     setTheme, cycleTheme, exportBackup, processDataFile, resetData, setupUtools, showToast,
@@ -367,5 +378,5 @@ export function displayHost(url) {
 }
 
 export function safeColor(value) {
-  return /^#[\da-f]{6}$/i.test(value || '') ? value : '#16b8c7'
+  return /^(#[\da-f]{3,8}|rgba?\([\d\s.,%]+\))$/i.test(value || '') ? value : '#16b8c7'
 }

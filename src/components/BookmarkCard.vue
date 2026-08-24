@@ -1,57 +1,43 @@
 <script setup>
+import { computed } from 'vue'
 import { initials } from '../lib/core.mjs'
 import { displayHost, safeColor } from '../composables/useFunLink.js'
 
 const props = defineProps({ bookmark: { type: Object, required: true }, trashView: Boolean })
-const emit = defineEmits(['open', 'favorite', 'note', 'menu', 'context-menu', 'drag-start', 'drop'])
+const emit = defineEmits(['open', 'note', 'context-menu', 'drag-start', 'drop'])
+const faviconUrl = computed(() => props.bookmark.iconData || `https://fav.lee.cm/get.php?url=${displayHost(props.bookmark.url).replace(/^www\./, '')}`)
 </script>
 
 <template>
   <article
     class="bookmark-card"
     :draggable="!trashView"
+    @click="emit('open', bookmark)"
     @contextmenu.prevent="emit('context-menu', bookmark, $event)"
     @dragstart="emit('drag-start', bookmark.id, $event)"
     @dragover.prevent
     @drop.prevent="emit('drop', bookmark.id)"
   >
-    <button class="card-open" type="button" :aria-label="`打开 ${bookmark.title}`" @click="emit('open', bookmark)" />
-    <div
+    <span
       class="bookmark-icon"
       :class="{ image: bookmark.iconType === 'image' }"
-      :style="{ '--bookmark-color': safeColor(bookmark.color) }"
+      role="button"
+      tabindex="0"
+      :aria-label="`打开 ${bookmark.title} 的笔记`"
+      :style="{ '--bookmark-color': safeColor(bookmark.color), '--icon-size': `${bookmark.iconSize || 16}px` }"
+      @click.stop="emit('note', bookmark)"
+      @keydown.enter.stop="emit('note', bookmark)"
+      @keydown.space.prevent.stop="emit('note', bookmark)"
     >
-      <img v-if="bookmark.iconType === 'image' && bookmark.icon" :src="bookmark.icon" alt="" loading="lazy" />
-      <template v-else>{{ bookmark.icon || initials(bookmark.title) }}</template>
-    </div>
+      <img v-if="bookmark.iconType === 'image'" :src="faviconUrl" alt="" />
+      <span v-else :class="{ 'emoji-text': bookmark.icon === '👌' }">{{ bookmark.icon || initials(bookmark.title) }}</span>
+    </span>
     <div class="bookmark-copy">
       <h2 :title="bookmark.title">{{ bookmark.title }}</h2>
-      <p :title="bookmark.description || displayHost(bookmark.url)">{{ bookmark.description || displayHost(bookmark.url) }}</p>
-    </div>
-    <div class="card-actions">
-      <button
-        v-if="bookmark.note"
-        class="card-note"
-        type="button"
-        :aria-label="`打开 ${bookmark.title} 的笔记`"
-        title="卡片笔记"
-        @click.stop="emit('note', bookmark)"
-      >
-        <span aria-hidden="true">≡</span>
-      </button>
-      <button
-        type="button"
-        class="favorite-button"
-        :class="{ active: bookmark.favorite }"
-        :aria-label="bookmark.favorite ? '取消常用' : '加入常用'"
-        title="常用"
-        @click.stop="emit('favorite', bookmark)"
-      >
-        {{ bookmark.favorite ? '★' : '☆' }}
-      </button>
-      <button type="button" aria-label="更多操作" title="更多操作" @click.stop="emit('menu', bookmark, $event)">
-        ⋮
-      </button>
+      <p :title="bookmark.description || displayHost(bookmark.url)">
+        <i v-if="bookmark.hasNote || bookmark.note" class="iconfont icon-remarks note-mark" aria-hidden="true" />
+        <span>{{ bookmark.description || displayHost(bookmark.url) }}</span>
+      </p>
     </div>
   </article>
 </template>

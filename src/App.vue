@@ -1,7 +1,6 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import AppHeader from './components/AppHeader.vue'
-import AppNavigation from './components/AppNavigation.vue'
 import BookmarkDialog from './components/BookmarkDialog.vue'
 import BookmarkGrid from './components/BookmarkGrid.vue'
 import CategoryDialog from './components/CategoryDialog.vue'
@@ -13,29 +12,29 @@ import { useFunLink } from './composables/useFunLink.js'
 
 const funlink = useFunLink()
 const {
-  state, search, toast, roots, activeCategoryId, activeRootId, secondaryCategories, trashCount,
-  currentBookmarks, viewTitle, viewMeta, defaultCategoryId,
+  state, toast, roots, activeCategoryId, activeRootId, secondaryCategories, secondaryPosition,
+  trashCount, currentBookmarks, defaultCategoryId,
 } = funlink
-const header = ref(null)
 const bookmarkDialog = ref(null)
 const categoryDialog = ref(null)
 const noteDialog = ref(null)
 const settingsDialog = ref(null)
 const draggedBookmarkId = ref(null)
-const context = reactive({ visible: false, bookmark: null, x: 0, y: 0 })
+const context = reactive({ visible: false, type: '', bookmark: null, x: 0, y: 0 })
 
 const contextItems = computed(() => {
+  if (context.type === 'category') return [{ action: 'manage', label: '管理分类', icon: 'icon-add-circle' }]
   const bookmark = context.bookmark
   if (!bookmark) return []
   return bookmark.deletedAt
-    ? [{ action: 'restore', label: '恢复' }, { action: 'delete', label: '永久删除' }]
+    ? [{ action: 'restore', label: '恢复', icon: 'icon-back' }, { action: 'delete', label: '删除', icon: 'icon-delete' }]
     : [
-        { action: 'append', label: '追加网址' },
-        { action: 'edit', label: '编辑' },
-        { action: 'note', label: bookmark.note ? '编辑笔记' : '记录笔记' },
-        { action: 'quick', label: bookmark.quick ? '关闭网页快开' : '网页快开' },
-        { action: 'favorite', label: bookmark.favorite ? '取消常用' : '加入常用' },
-        { action: 'trash', label: '移到废纸篓' },
+        { action: 'append', label: '追加', icon: 'icon-add-circle' },
+        { action: 'edit', label: '编辑', icon: 'icon-edit', divided: true },
+        { action: 'quick', label: bookmark.quick ? '取消快开' : '网页快开', icon: bookmark.quick ? 'icon-quick-fill' : 'icon-quick', divided: true },
+        { action: 'copy', label: '复制链接', icon: 'icon-remarks' },
+        { action: 'move', label: '移到...', icon: 'icon-move', arrow: true },
+        { action: 'trash', label: '移除', icon: 'icon-delete' },
       ]
 })
 
@@ -43,34 +42,38 @@ function openContextMenu(bookmark, event) {
   const rect = event.currentTarget?.getBoundingClientRect?.()
   Object.assign(context, {
     visible: true,
+    type: 'bookmark',
     bookmark,
-    x: event.type === 'contextmenu' ? event.clientX : rect.right - 184,
+    x: event.type === 'contextmenu' ? event.clientX : rect.right - 134,
     y: event.type === 'contextmenu' ? event.clientY : rect.bottom + 4,
   })
 }
 
+function openCategoryContextMenu(event) {
+  Object.assign(context, { visible: true, type: 'category', bookmark: null, x: event.clientX, y: event.clientY })
+}
+
 function closeContextMenu() {
   context.visible = false
+  context.type = ''
   context.bookmark = null
 }
 
 function handleContextAction(action) {
   const bookmark = context.bookmark
   closeContextMenu()
+  if (action === 'manage') return categoryDialog.value.open()
   if (!bookmark) return
   if (action === 'append') bookmarkDialog.value.open(null, bookmark.id)
   if (action === 'edit') bookmarkDialog.value.open(bookmark)
-  if (action === 'note') noteDialog.value.open(bookmark)
   if (action === 'quick') funlink.toggleQuick(bookmark)
-  if (action === 'favorite') funlink.toggleFavorite(bookmark)
+  if (action === 'copy') {
+    if (window.utools?.copyText) window.utools.copyText(bookmark.url)
+    else navigator.clipboard?.writeText(bookmark.url)
+  }
   if (action === 'trash') funlink.moveToTrash(bookmark)
   if (action === 'restore') funlink.restoreBookmark(bookmark)
   if (action === 'delete') funlink.deleteBookmark(bookmark)
-}
-
-function handleManage() {
-  if (state.value.currentView === 'trash') funlink.emptyTrash()
-  else categoryDialog.value.open()
 }
 
 function handleDragStart(id, event) {
@@ -92,13 +95,7 @@ function handleReset() {
   if (funlink.resetData()) settingsDialog.value.close()
 }
 
-function handleKeydown(event) {
-  if (event.key === '/' && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) {
-    event.preventDefault()
-    header.value?.focusSearch()
-  }
-  if (event.key === 'Escape') closeContextMenu()
-}
+function handleKeydown(event) { if (event.key === 'Escape') closeContextMenu() }
 
 onMounted(() => {
   document.addEventListener('click', closeContextMenu)
@@ -115,43 +112,45 @@ onBeforeUnmount(() => {
 <template>
   <div class="app-shell">
     <AppHeader
-      ref="header"
-      v-model="search"
-      :theme="state.theme"
-      @home="funlink.setView('all')"
-      @add="bookmarkDialog.open()"
-      @cycle-theme="funlink.cycleTheme"
-      @settings="settingsDialog.open()"
-    />
-    <AppNavigation
       :roots="roots"
       :current-view="state.currentView"
       :active-root-id="activeRootId"
+      :theme="state.theme"
       @select="funlink.setView"
+      @manage="openCategoryContextMenu"
+      @cycle-theme="funlink.cycleTheme"
+      @settings="settingsDialog.open()"
     />
 
-    <main class="workspace">
-      <SecondaryNavigation :categories="secondaryCategories" :active-category-id="activeCategoryId" @select="funlink.setView" />
-      <BookmarkGrid
-        :bookmarks="currentBookmarks"
-        :title="viewTitle"
-        :meta="viewMeta"
-        :trash-view="state.currentView === 'trash'"
-        @add="bookmarkDialog.open()"
-        @manage="handleManage"
-        @open="funlink.openLink"
-        @favorite="funlink.toggleFavorite"
-        @note="noteDialog.open($event)"
-        @menu="openContextMenu"
-        @context-menu="openContextMenu"
-        @drag-start="handleDragStart"
-        @drop="handleDrop"
-      />
+    <main class="main">
+      <div class="main-view">
+        <div class="detail-content" :class="secondaryCategories.length ? `tabs-${secondaryPosition}` : ''">
+          <SecondaryNavigation
+            :categories="secondaryCategories"
+            :active-category-id="activeCategoryId"
+            :position="secondaryPosition"
+            @select="funlink.setView"
+          />
+          <BookmarkGrid
+            :bookmarks="currentBookmarks"
+            :trash-view="state.currentView === 'trash'"
+            :show-add="!['trash', 'quick', 'favorites'].includes(state.currentView)"
+            @add="bookmarkDialog.open()"
+            @open="funlink.openLink"
+            @note="noteDialog.open($event)"
+            @context-menu="openContextMenu"
+            @drag-start="handleDragStart"
+            @drop="handleDrop"
+          />
+        </div>
+      </div>
     </main>
 
     <button class="trash-button" type="button" aria-label="打开废纸篓" title="废纸篓" @click="funlink.setView('trash')" @contextmenu.prevent="funlink.emptyTrash">
-      <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 15H6L5 6M10 11v6M14 11v6"/></svg>
-      <span v-if="trashCount">{{ trashCount }}</span>
+      <span class="trash-badge">
+        <i class="iconfont icon-dust" aria-hidden="true" />
+        <sup v-if="trashCount">{{ trashCount }}</sup>
+      </span>
     </button>
 
     <ContextMenu v-if="context.visible" :items="contextItems" :x="context.x" :y="context.y" @select="handleContextAction" />

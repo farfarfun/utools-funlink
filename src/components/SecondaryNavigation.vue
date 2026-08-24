@@ -1,10 +1,14 @@
 <script setup>
-defineProps({ categories: { type: Array, required: true }, activeCategoryId: { type: String, required: true } })
+defineProps({
+  categories: { type: Array, required: true },
+  activeCategoryId: { type: String, required: true },
+  position: { type: String, default: 'top' },
+})
 const emit = defineEmits(['select'])
 </script>
 
 <template>
-  <aside v-if="categories.length" class="secondary-nav" aria-label="二级分类">
+  <aside v-if="categories.length" class="secondary-nav" :class="`is-${position}`" aria-label="二级分类">
     <button
       v-for="category in categories"
       :key="category.id"
