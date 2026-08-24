@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "收藏、分类、搜索并快速打开网址",
   "author": "farfarfun",
-  "main": "index.html",
+  "main": "dist/index.html",
   "preload": "preload.js",
   "logo": "logo.png",
   "pluginSetting": {

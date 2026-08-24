@@ -2,7 +2,7 @@
 
 FunLink 是一个面向 uTools 的网址收藏与快速访问插件。它把零散书签整理成清晰的网址导航，并将收藏、搜索和打开网页串联到 uTools 主搜索框中，适合管理工作入口、开发文档、设计素材和常用在线工具。
 
-插件无需账号或独立服务端，数据保存在 uTools `dbStorage` 中。项目使用原生 HTML、CSS 和 JavaScript 实现，无第三方运行依赖，也不需要构建即可加载。
+插件无需账号或独立服务端，数据保存在 uTools `dbStorage` 中。项目使用 Vue 3、Composition API 和 Vite 构建，并通过独立组件与 composable 组织界面和业务状态。
 
 ## 主要功能
 
@@ -38,24 +38,40 @@ https://www.bing.com/search?q={q}
 
 ## 使用方式
 
-1. 打开 uTools 的“开发者工具”插件。
-2. 选择“新建项目”，载入本目录的 `plugin.json`。
-3. 运行项目后，通过 uTools 搜索 `FunLink` 进入插件。
+1. 运行 `npm install && npm run build`。
+2. 打开 uTools 的“开发者工具”插件。
+3. 选择“新建项目”，载入本目录的 `plugin.json`。
+4. 运行项目后，通过 uTools 搜索 `FunLink` 进入插件。
 
 插件内可直接点击卡片打开网址，右键卡片可编辑、记录笔记、设置网页快开、加入常用或移到废纸篓。按 `/` 可快速聚焦搜索框。
 
-## 本地预览
+## 开发
 
 ```bash
-python3 -m http.server 9013 --bind 127.0.0.1
+npm install
+npm run dev
 ```
 
-访问 <http://127.0.0.1:9013/>。浏览器预览使用 `localStorage`，在 uTools 中运行时自动切换为 `dbStorage`。
+访问终端输出的本地地址。浏览器预览使用 `localStorage`，在 uTools 中运行时自动切换为 `dbStorage`。
+
+主要目录：
+
+- `src/components/`：导航、网址卡片和各类对话框
+- `src/composables/useFunLink.js`：收藏状态、数据操作和 uTools 生命周期
+- `src/lib/core.mjs`：可独立测试的 URL、搜索、排序和备份校验逻辑
+- `preload.js`：文件读写及指定浏览器打开能力
+
+生产构建输出到 `dist/`：
+
+```bash
+npm run build
+```
 
 ## 测试
 
 ```bash
 npm test
+npm run build
 ```
 
 ## 致谢

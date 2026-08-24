@@ -1,0 +1,18 @@
+<script setup>
+defineProps({ categories: { type: Array, required: true }, activeCategoryId: { type: String, required: true } })
+const emit = defineEmits(['select'])
+</script>
+
+<template>
+  <aside v-if="categories.length" class="secondary-nav" aria-label="二级分类">
+    <button
+      v-for="category in categories"
+      :key="category.id"
+      type="button"
+      :class="{ active: activeCategoryId === category.id }"
+      @click="emit('select', `category:${category.id}`)"
+    >
+      {{ category.name }}
+    </button>
+  </aside>
+</template>

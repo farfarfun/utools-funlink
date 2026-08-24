@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { bookmarkMatches, moveItem, normalizeUrl, validateState } from '../core.mjs'
+import { bookmarkMatches, moveItem, normalizeUrl, validateState } from '../src/lib/core.mjs'
 
 test('core bookmark operations stay predictable', () => {
   assert.equal(normalizeUrl('example.com'), 'https://example.com/')

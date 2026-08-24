@@ -1,0 +1,28 @@
+<script setup>
+import { nextTick, ref, watch } from 'vue'
+
+const props = defineProps({ items: { type: Array, required: true }, x: { type: Number, required: true }, y: { type: Number, required: true } })
+const emit = defineEmits(['select'])
+const menu = ref(null)
+const position = ref({ left: `${props.x}px`, top: `${props.y}px` })
+
+watch(() => [props.x, props.y, props.items], async () => {
+  await nextTick()
+  const width = menu.value?.offsetWidth || 184
+  const height = menu.value?.offsetHeight || 100
+  position.value = {
+    left: `${Math.max(8, Math.min(props.x, window.innerWidth - width - 8))}px`,
+    top: `${Math.max(8, Math.min(props.y, window.innerHeight - height - 8))}px`,
+  }
+  menu.value?.querySelector('button')?.focus()
+}, { immediate: true })
+</script>
+
+<template>
+  <div ref="menu" class="context-menu" role="menu" :style="position" @click.stop>
+    <template v-for="(item, index) in items" :key="item.action">
+      <span v-if="index === items.length - 1" class="menu-divider" />
+      <button type="button" role="menuitem" @click="emit('select', item.action)">{{ item.label }}</button>
+    </template>
+  </div>
+</template>
