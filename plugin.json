@@ -1,0 +1,47 @@
+{
+  "pluginName": "FunLink",
+  "version": "1.0.0",
+  "description": "收藏、分类、搜索并快速打开网址",
+  "author": "farfarfun",
+  "main": "index.html",
+  "preload": "preload.js",
+  "logo": "logo.png",
+  "pluginSetting": {
+    "height": 1
+  },
+  "features": [
+    {
+      "code": "funlink",
+      "explain": "收藏、分类和快速打开网址",
+      "icon": "logo.png",
+      "cmds": ["FunLink", "网址收藏", "网址导航", "网页收藏", "web"]
+    },
+    {
+      "code": "search-link",
+      "explain": "搜索 FunLink 中的网址",
+      "icon": "search.png",
+      "cmds": [
+        {
+          "type": "over",
+          "label": "搜索网址",
+          "minLength": 1,
+          "maxLength": 40
+        }
+      ],
+      "mainPush": true
+    },
+    {
+      "code": "add-link",
+      "explain": "添加网址到 FunLink",
+      "icon": "logo.png",
+      "cmds": [
+        {
+          "type": "regex",
+          "label": "添加网址",
+          "match": "/^(https?|ftp|file):\\/\\//"
+        }
+      ]
+    }
+  ],
+  "platform": ["darwin", "win32", "linux"]
+}
