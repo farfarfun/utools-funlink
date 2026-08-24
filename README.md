@@ -38,7 +38,7 @@ https://www.bing.com/search?q={q}
 
 ## 使用方式
 
-1. 运行 `npm install && npm run build`。
+1. 运行 `./build.sh`。
 2. 打开 uTools 的“开发者工具”插件。
 3. 选择“新建项目”，载入本目录的 `plugin.json`。
 4. 运行项目后，通过 uTools 搜索 `FunLink` 进入插件。
