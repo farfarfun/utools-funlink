@@ -27,6 +27,11 @@ export function initials(title) {
   return (words.length > 1 ? words.map(word => word[0]).join('') : words[0]).slice(0, 2).toUpperCase()
 }
 
+export function normalizeCategoryIds(categoryIds, fallback = 'cat@default') {
+  const ids = Array.isArray(categoryIds) ? categoryIds.filter(id => typeof id === 'string' && id) : []
+  return ids.length ? [...new Set(ids)] : [fallback]
+}
+
 export function moveItem(items, sourceId, targetId) {
   const from = items.findIndex(item => item.id === sourceId)
   const to = items.findIndex(item => item.id === targetId)

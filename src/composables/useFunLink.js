@@ -1,5 +1,5 @@
 import { computed, reactive, ref } from 'vue'
-import { bookmarkMatches, initials, moveCategory, moveItem, parseBookmarkHtml, validateState } from '../lib/core.mjs'
+import { bookmarkMatches, initials, moveCategory, moveItem, normalizeCategoryIds, parseBookmarkHtml, validateState } from '../lib/core.mjs'
 import firstData from '../data/firstData.json'
 
 const STORAGE_KEY = 'funlink-state-v1'
@@ -173,8 +173,8 @@ export function useFunLink() {
   function saveBookmark(input, afterId = null) {
     const id = input.id || `bookmark-${Date.now()}`
     const previous = state.value.bookmarks.find(bookmark => bookmark.id === id)
-    const categoryId = input.categoryId || 'cat@default'
-    const bookmark = { ...previous, ...input, id, categoryId, categoryIds: [categoryId], note: previous?.note || '', deletedAt: null }
+    const categoryIds = normalizeCategoryIds(input.categoryIds || (input.categoryId ? [input.categoryId] : []))
+    const bookmark = { ...previous, ...input, id, categoryId: categoryIds[0], categoryIds, note: previous?.note || '', deletedAt: null }
     if (previous) state.value.bookmarks[state.value.bookmarks.indexOf(previous)] = bookmark
     else if (afterId) state.value.bookmarks.splice(state.value.bookmarks.findIndex(item => item.id === afterId) + 1, 0, bookmark)
     else state.value.bookmarks.push(bookmark)

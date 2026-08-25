@@ -1,6 +1,7 @@
 <script setup>
 import { computed, reactive, ref } from 'vue'
 import emptyImage from '../assets/empty.svg'
+import emptyDarkImage from '../assets/empty-dark.svg'
 
 const props = defineProps({
   settings: { type: Object, required: true },
@@ -280,12 +281,12 @@ defineExpose({ open, close })
     <template v-if="invalidTab === 'results'">
       <div class="invalid-summary">共需检查 <b>{{ checkCandidates.length }}</b> 条链接，<template v-if="scanning">正在检查第 <b>{{ scanned }}</b> 个，已查到 <b>{{ invalidResults.length }}</b> 条无效链接，请稍后...</template><template v-else>点击按钮后开始检查无效链接。</template></div>
       <div v-if="invalidResults.length" class="invalid-result-list"><div v-for="item in invalidResults" :key="item.id"><span>{{ item.title }}</span><a :href="item.url">{{ item.url }}</a><em>{{ item.message }}</em><button type="button" @click="ignoreLink(item)">忽略</button></div></div>
-      <div v-else class="invalid-empty"><img :src="emptyImage" alt="" /><span>提示：由于个别站点原因，扫描结果可能有小误差！</span></div>
+      <div v-else class="invalid-empty"><img class="empty-image-light" :src="emptyImage" alt="" /><img class="empty-image-dark" :src="emptyDarkImage" alt="" /><span>提示：由于个别站点原因，扫描结果可能有小误差！</span></div>
     </template>
     <template v-else>
       <div class="invalid-summary">已忽略 <b>{{ ignoredLinks.length }}</b> 条链接 <span>如果个别网址检查不准确，请加入忽略检查白名单</span></div>
       <div v-if="ignoredLinks.length" class="invalid-result-list"><div v-for="(item, index) in ignoredLinks" :key="item.url"><span>{{ item.title }}</span><a :href="item.url">{{ item.url }}</a><button type="button" @click="unignoreLink(index)">取消</button></div></div>
-      <div v-else class="invalid-empty"><img :src="emptyImage" alt="" /><span>暂无数据</span></div>
+      <div v-else class="invalid-empty"><img class="empty-image-light" :src="emptyImage" alt="" /><img class="empty-image-dark" :src="emptyDarkImage" alt="" /><span>暂无数据</span></div>
     </template>
   </dialog>
 </template>

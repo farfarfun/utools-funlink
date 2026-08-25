@@ -15,17 +15,23 @@ const urlInput = ref(null)
 const afterId = ref(null)
 const editing = ref(false)
 const expanded = ref(false)
+const categoryOpen = ref(false)
+const activeCategoryRootId = ref('')
 const error = ref('')
 const form = reactive({})
 const roots = computed(() => props.categories.filter(category => !category.parentId))
 const childrenOf = id => props.categories.filter(category => category.parentId === id)
-const selectedCategory = computed(() => form.categoryId === 'cat@default'
-  ? { name: '收集箱' }
-  : props.categories.find(category => category.id === form.categoryId))
+const categoryRoots = computed(() => [...roots.value, { id: 'cat@default', name: '收集箱', parentId: '' }])
+const activeCategoryChildren = computed(() => childrenOf(activeCategoryRootId.value))
+const selectedCategories = computed(() => (form.categoryIds || []).flatMap(id => {
+  if (id === 'cat@default') return [{ id, name: '收集箱' }]
+  const category = props.categories.find(item => item.id === id)
+  return category ? [category] : []
+}))
 
 function blankForm() {
   return {
-    id: '', url: '', urls: [], title: '', description: '', categoryId: props.defaultCategoryId || 'cat@default',
+    id: '', url: '', urls: [], title: '', description: '', categoryId: props.defaultCategoryId || 'cat@default', categoryIds: [props.defaultCategoryId || 'cat@default'],
     iconType: 'image', icon: '', color: COLORS[props.bookmarkCount % COLORS.length], iconData: '', iconSize: 16,
     browser: 'default', favorite: false, quick: false,
   }
@@ -36,27 +42,39 @@ function open(bookmark = null, insertAfterId = null) {
   afterId.value = insertAfterId
   error.value = ''
   Object.assign(form, blankForm(), bookmark || {})
-  form.categoryId = bookmark?.categoryId || bookmark?.categoryIds?.[0] || props.defaultCategoryId || 'cat@default'
+  const categoryIds = bookmark?.categoryIds?.length
+    ? bookmark.categoryIds.slice()
+    : [bookmark?.categoryId || props.defaultCategoryId || 'cat@default']
+  form.categoryIds = [...new Set(categoryIds)]
+  form.categoryId = form.categoryIds[0]
+  const selectedCategory = props.categories.find(category => category.id === form.categoryIds[0])
+  activeCategoryRootId.value = selectedCategory?.parentId || selectedCategory?.id || roots.value[0]?.id || 'cat@default'
+  categoryOpen.value = false
   form.urls = Array.isArray(bookmark?.urls) ? bookmark.urls.map(item => typeof item === 'string' ? item : item.value) : []
   form.color = safeColor(form.color)
   expanded.value = editing.value || /^(https?|ftp|file):\/\//i.test(form.url)
   if (!dialog.value.open) dialog.value.showModal()
 }
 
-function close() { dialog.value?.close() }
+function close() {
+  categoryOpen.value = false
+  dialog.value?.close()
+}
 
 function addUrl() { form.urls.push('') }
 
 function submit() {
   try {
     if (!form.title.trim()) throw new Error('网站名称不能为空')
+    if (!form.categoryIds?.length) throw new Error('请选择分类')
     emit('save', {
       id: form.id,
       url: normalizeUrl(form.url),
       urls: form.urls.filter(Boolean),
       title: form.title.trim(),
       description: form.description.trim(),
-      categoryId: form.categoryId || 'cat@default',
+      categoryId: form.categoryIds[0],
+      categoryIds: form.categoryIds.slice(),
       iconType: form.iconType,
       icon: form.icon.trim() || initials(form.title),
       iconData: form.iconData,
@@ -75,6 +93,57 @@ function submit() {
 
 function closeOnBackdrop(event) { if (event.target === dialog.value) close() }
 
+function cancel(event) {
+  if (!categoryOpen.value) return close()
+  event.preventDefault()
+  categoryOpen.value = false
+}
+
+function openCategoryMenu() {
+  categoryOpen.value = !categoryOpen.value
+  error.value = ''
+}
+
+function categoryIdsForRoot(root) {
+  const children = childrenOf(root.id)
+  return children.length ? children.map(category => category.id) : [root.id]
+}
+
+function rootChecked(root) {
+  const ids = categoryIdsForRoot(root)
+  return ids.every(id => form.categoryIds.includes(id)) || form.categoryIds.includes(root.id)
+}
+
+function rootIndeterminate(root) {
+  const ids = categoryIdsForRoot(root)
+  const count = ids.filter(id => form.categoryIds.includes(id)).length
+  return count > 0 && count < ids.length
+}
+
+function toggleCategory(id) {
+  form.categoryIds = form.categoryIds.includes(id)
+    ? form.categoryIds.filter(categoryId => categoryId !== id)
+    : [...form.categoryIds, id]
+  form.categoryId = form.categoryIds[0] || ''
+  error.value = ''
+}
+
+function toggleRoot(root) {
+  const ids = categoryIdsForRoot(root)
+  if (ids.length === 1) return toggleCategory(ids[0])
+  const remove = rootChecked(root)
+  form.categoryIds = remove
+    ? form.categoryIds.filter(id => id !== root.id && !ids.includes(id))
+    : [...new Set([...form.categoryIds.filter(id => id !== root.id), ...ids])]
+  form.categoryId = form.categoryIds[0] || ''
+  error.value = ''
+}
+
+function clearCategories() {
+  form.categoryIds = []
+  form.categoryId = ''
+}
+
 watch(() => form.url, value => {
   expanded.value = editing.value || /^(https?|ftp|file):\/\//i.test(String(value || '').trim())
   if (expanded.value && !form.title && editing.value) form.title = ''
@@ -85,8 +154,8 @@ defineExpose({ open, close })
 </script>
 
 <template>
-  <dialog ref="dialog" class="bookmark-dialog" @click="closeOnBackdrop" @cancel.prevent="close">
-    <form @submit.prevent="submit">
+  <dialog ref="dialog" class="bookmark-dialog" @click="closeOnBackdrop" @cancel.prevent="cancel">
+    <form @submit.prevent="submit" @click="categoryOpen = false">
       <header class="bookmark-dialog-header">
         <span class="bookmark-dialog-heading-icon"><i class="iconfont icon-card" aria-hidden="true" /></span>
         <h2>{{ editing ? '编辑卡片' : '添加卡片' }}</h2>
@@ -99,7 +168,7 @@ defineExpose({ open, close })
 
         <div class="web-edit-card" :class="{ skeleton: !expanded }">
           <template v-if="expanded">
-            <span class="web-preview-icon" :class="{ empty: form.iconType === 'image' && !form.iconData }" :style="{ backgroundColor: form.iconType === 'text' ? form.color : '' }">
+            <span class="web-preview-icon" :class="{ empty: form.iconType === 'image' && !form.iconData, ripple: !editing && form.iconType === 'image' && !form.iconData }" :style="{ backgroundColor: form.iconType === 'text' ? form.color : '' }">
               <img v-if="form.iconType === 'image' && form.iconData" :src="form.iconData" alt="" />
               <template v-else-if="form.iconType === 'text'">{{ form.icon || initials(form.title) }}</template>
             </span>
@@ -116,19 +185,68 @@ defineExpose({ open, close })
 
         <template v-if="expanded">
           <div class="bookmark-options-row">
-            <label class="bookmark-category-field"><span><b>*</b> 所在分类</span>
-              <div class="category-select">
-                <span class="selected-tag">{{ selectedCategory?.name || '收集箱' }} <i>×</i></span>
-                <span class="select-arrow">⌄</span>
-                <select v-model="form.categoryId" aria-label="所在分类">
-                  <option value="cat@default">收集箱</option>
-                  <template v-for="root in roots" :key="root.id">
-                    <option :value="root.id">{{ root.name }}</option>
-                    <option v-for="child in childrenOf(root.id)" :key="child.id" :value="child.id">　{{ child.name }}</option>
-                  </template>
-                </select>
+            <div class="bookmark-category-field"><span><b>*</b> 所在分类</span>
+              <div
+                class="category-select"
+                :class="{ open: categoryOpen }"
+                role="combobox"
+                tabindex="0"
+                aria-label="所在分类"
+                aria-haspopup="tree"
+                :aria-expanded="categoryOpen"
+                @click.stop="openCategoryMenu"
+                @keydown.enter.prevent="openCategoryMenu"
+                @keydown.space.prevent="openCategoryMenu"
+                @keydown.down.prevent="categoryOpen = true"
+                @keydown.esc.stop.prevent="categoryOpen = false"
+              >
+                <span class="category-tags">
+                  <span v-for="category in selectedCategories" :key="category.id" class="selected-tag">
+                    <span>{{ category.name }}</span>
+                    <button type="button" :aria-label="`移除分类${category.name}`" @click.stop="toggleCategory(category.id)">×</button>
+                  </span>
+                  <span v-if="!selectedCategories.length" class="category-placeholder">请选择分类...</span>
+                </span>
+                <button v-if="selectedCategories.length" class="category-clear" type="button" aria-label="清空分类" @click.stop="clearCategories">×</button>
+                <span class="select-arrow" aria-hidden="true" />
               </div>
-            </label>
+
+              <div v-if="categoryOpen" class="category-options-popover" role="tree" aria-label="分类列表" @click.stop @keydown.esc.stop.prevent="categoryOpen = false">
+                <div class="category-option-panel" role="group" aria-label="一级分类">
+                  <button
+                    v-for="root in categoryRoots"
+                    :key="root.id"
+                    type="button"
+                    class="category-option-row"
+                    :class="{ active: activeCategoryRootId === root.id, checked: rootChecked(root) }"
+                    role="treeitem"
+                    :aria-checked="rootChecked(root)"
+                    @mouseenter="activeCategoryRootId = root.id"
+                    @focus="activeCategoryRootId = root.id"
+                    @click="toggleRoot(root)"
+                  >
+                    <span class="category-option-checkbox" :class="{ checked: rootChecked(root), indeterminate: rootIndeterminate(root) }" aria-hidden="true" />
+                    <span class="category-option-label">{{ root.name }}</span>
+                    <span v-if="childrenOf(root.id).length" class="category-option-arrow" aria-hidden="true" />
+                  </button>
+                </div>
+                <div v-if="activeCategoryChildren.length" class="category-option-panel" role="group" aria-label="二级分类">
+                  <button
+                    v-for="category in activeCategoryChildren"
+                    :key="category.id"
+                    type="button"
+                    class="category-option-row"
+                    :class="{ checked: form.categoryIds.includes(category.id) }"
+                    role="treeitem"
+                    :aria-checked="form.categoryIds.includes(category.id)"
+                    @click="toggleCategory(category.id)"
+                  >
+                    <span class="category-option-checkbox" :class="{ checked: form.categoryIds.includes(category.id) }" aria-hidden="true" />
+                    <span class="category-option-label">{{ category.name }}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
             <label class="bookmark-browser-field"><span>打开方式</span>
               <select v-model="form.browser" aria-label="打开方式">
                 <option value="default">默认设置</option><option value="system">系统浏览器</option><option value="inner">内置浏览器</option>
