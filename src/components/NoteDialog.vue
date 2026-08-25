@@ -1,48 +1,63 @@
 <script setup>
 import { nextTick, ref } from 'vue'
+import { initials } from '../lib/core.mjs'
+import { safeColor } from '../composables/useFunLink.js'
 
 const emit = defineEmits(['save'])
 const dialog = ref(null)
-const textarea = ref(null)
-const bookmarkId = ref('')
-const title = ref('')
-const note = ref('')
+const editor = ref(null)
+const bookmark = ref(null)
+const original = ref('')
 
-function open(bookmark) {
-  bookmarkId.value = bookmark.id
-  title.value = `${bookmark.title} · 笔记`
-  note.value = bookmark.note || ''
+function open(value) {
+  bookmark.value = value
+  original.value = value.note || ''
   if (!dialog.value.open) dialog.value.showModal()
-  nextTick(() => textarea.value?.focus())
+  nextTick(() => {
+    editor.value.innerHTML = original.value || '<p></p>'
+    editor.value.focus()
+  })
 }
-function close() { dialog.value?.close() }
-function submit() {
-  emit('save', bookmarkId.value, note.value)
-  close()
+
+function close() {
+  const content = editor.value?.innerHTML || ''
+  if (bookmark.value && content !== original.value) emit('save', bookmark.value.id, content === '<p><br></p>' ? '' : content)
+  dialog.value?.close()
 }
-function closeOnBackdrop(event) { if (event.target === dialog.value) close() }
+
 function handleKeydown(event) {
   if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
     event.preventDefault()
-    submit()
+    close()
   }
+  if (event.key === 'Escape') event.preventDefault()
 }
+
 defineExpose({ open, close })
 </script>
 
 <template>
-  <dialog ref="dialog" class="modal note-modal" @click="closeOnBackdrop" @keydown="handleKeydown">
-    <form method="dialog" @submit.prevent="submit">
-      <div class="modal-header">
-        <div><h2>{{ title }}</h2><p>自动保存在网址卡片中</p></div>
-        <button class="icon-button" type="button" aria-label="关闭" @click="close">×</button>
-      </div>
-      <label class="note-field"><span class="sr-only">笔记内容</span><textarea ref="textarea" v-model="note" placeholder="记录账号提示、使用说明或待办事项..." spellcheck="true" /></label>
-      <div class="modal-actions">
-        <span class="keyboard-help"><kbd>Ctrl</kbd> + <kbd>S</kbd> 保存</span>
-        <button class="button secondary" type="button" @click="close">取消</button>
-        <button class="button primary" type="submit">保存笔记</button>
-      </div>
-    </form>
+  <dialog ref="dialog" class="note-dialog" aria-label="card-note-modal" @cancel.prevent @keydown="handleKeydown">
+    <template v-if="bookmark">
+      <header class="note-dialog-header">
+        <button type="button" class="note-card-title">
+          <span class="note-avatar" :style="{ backgroundColor: safeColor(bookmark.color), fontSize: `${(bookmark.iconSize || 16) * 0.6}px` }">
+            <img v-if="bookmark.iconType === 'image' && bookmark.iconData" :src="bookmark.iconData" alt="" />
+            <template v-else>{{ bookmark.icon || initials(bookmark.title) }}</template>
+          </span>
+          <span>{{ bookmark.title }}</span>
+        </button>
+        <span class="note-description">{{ bookmark.description }}</span>
+        <button type="button" class="note-close" aria-label="关闭" @click="close">×</button>
+      </header>
+      <div ref="editor" class="note-editor prose" contenteditable="true" role="textbox" aria-label="笔记内容" aria-multiline="true" spellcheck="true" />
+      <footer class="note-footer">
+        <div class="note-footer-spacer" />
+        <div class="note-footer-content">
+          <button type="button" title="暂未开放"><i class="iconfont icon-help" aria-hidden="true" /> 帮助</button>
+          <span class="note-shortcuts"><i /><kbd>/</kbd> 菜单命令 <i /><kbd>esc</kbd> 或 <kbd>ctrl</kbd> + <kbd>s</kbd> 保存</span>
+        </div>
+      </footer>
+    </template>
   </dialog>
 </template>

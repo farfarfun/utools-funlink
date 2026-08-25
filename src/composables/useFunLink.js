@@ -5,12 +5,19 @@ import firstData from '../data/firstData.json'
 const STORAGE_KEY = 'funlink-state-v1'
 const COLORS = ['#16b8c7', '#2563eb', '#7c3aed', '#db2777', '#e85d3f', '#0f9f6e', '#64748b']
 const SPECIAL_CATEGORY_IDS = new Set(['cat@default', 'cat@dustbin', 'cat@fly', 'cat@often'])
+const DEFAULT_SETTINGS = {
+  browser: { isOpenIn: false, width: 1000, height: 680 },
+  search: ['title', 'description', 'url'],
+  importSplit: '-,_,|,:,/,||',
+  navbar: { rounded: 36 },
+}
 
 function categoryIdsOf(bookmark) {
   return bookmark.categoryIds || (bookmark.categoryId ? [bookmark.categoryId] : [])
 }
 
 function seedState() {
+  const notes = new Map(firstData.filter(item => item.content != null).map(item => [item._id.replace(/^note_/, 'web_'), item.content]))
   const categories = firstData
     .filter(item => item.label && !SPECIAL_CATEGORY_IDS.has(item._id))
     .map(item => ({
@@ -29,7 +36,7 @@ function seedState() {
         title: item.title,
         url: item.url,
         description: item.desc || '',
-        categoryId,
+        categoryId: categoryId || (categoryIds.includes('cat@default') ? 'cat@default' : ''),
         categoryIds,
         color: item.icon?.textColor || COLORS[0],
         iconType: item.icon?.type || 'text',
@@ -40,7 +47,7 @@ function seedState() {
         favorite: Boolean(item.isOften),
         quick: Boolean(item.isFly),
         hasNote: Boolean(item.hasNote),
-        note: '',
+        note: notes.get(item._id) || '',
         deletedAt: categoryIds.includes('cat@dustbin') ? 1 : null,
       }
     })
@@ -49,9 +56,27 @@ function seedState() {
     version: 1,
     theme: 'system',
     currentView: 'category:cat_demo',
+    lastCategoryId: 'cat_demo',
+    settings: JSON.parse(JSON.stringify(DEFAULT_SETTINGS)),
     categories,
     bookmarks,
   }
+}
+
+function hydrateState(state) {
+  state.settings = {
+    ...DEFAULT_SETTINGS,
+    ...state.settings,
+    browser: { ...DEFAULT_SETTINGS.browser, ...state.settings?.browser },
+    navbar: { ...DEFAULT_SETTINGS.navbar, ...state.settings?.navbar },
+    search: state.settings?.search?.length ? state.settings.search : DEFAULT_SETTINGS.search.slice(),
+  }
+  state.bookmarks.forEach(bookmark => {
+    if (!categoryIdsOf(bookmark).length) bookmark.categoryIds = ['cat@default']
+    bookmark.categoryId = bookmark.categoryIds[0]
+  })
+  state.lastCategoryId ||= state.currentView.startsWith('category:') ? state.currentView.slice(9) : state.categories[0]?.id || ''
+  return state
 }
 
 function storage() {
@@ -64,7 +89,8 @@ function storage() {
 function loadState() {
   try {
     const saved = storage().getItem(STORAGE_KEY)
-    return saved ? validateState(saved) : seedState()
+    if (!saved) return seedState()
+    return hydrateState(validateState(saved))
   } catch (error) {
     console.error(error)
     return seedState()
@@ -78,13 +104,15 @@ export function useFunLink() {
   let toastTimer
 
   const roots = computed(() => state.value.categories.filter(category => !category.parentId))
-  const activeCategoryId = computed(() => state.value.currentView.startsWith('category:') ? state.value.currentView.slice(9) : '')
+  const activeCategoryId = computed(() => state.value.currentView.startsWith('category:')
+    ? state.value.currentView.slice(9)
+    : state.value.currentView === 'trash' ? state.value.lastCategoryId : '')
   const activeRootId = computed(() => {
     const category = state.value.categories.find(item => item.id === activeCategoryId.value)
     return category?.parentId || category?.id || ''
   })
   const childrenOf = parentId => state.value.categories.filter(category => category.parentId === parentId)
-  const secondaryCategories = computed(() => childrenOf(activeRootId.value))
+  const secondaryCategories = computed(() => state.value.currentView.startsWith('category:') && activeRootId.value ? childrenOf(activeRootId.value) : [])
   const secondaryPosition = computed(() => state.value.categories.find(category => category.id === activeRootId.value)?.tabPosition || 'top')
   const trashCount = computed(() => state.value.bookmarks.filter(bookmark => bookmark.deletedAt).length)
   const currentBookmarks = computed(() => {
@@ -104,9 +132,11 @@ export function useFunLink() {
         : new Set([activeCategoryId.value])
       bookmarks = active.filter(bookmark => categoryIdsOf(bookmark).some(id => ids.has(id)))
     }
-    return bookmarks.filter(bookmark => bookmarkMatches(bookmark, search.value))
+    return bookmarks.filter(bookmark => bookmarkMatches(bookmark, search.value, state.value.settings.search))
   })
-  const defaultCategoryId = computed(() => state.value.categories.some(category => category.id === activeCategoryId.value) ? activeCategoryId.value : '')
+  const defaultCategoryId = computed(() => state.value.currentView === 'inbox'
+    ? 'cat@default'
+    : state.value.categories.some(category => category.id === activeCategoryId.value) ? activeCategoryId.value : 'cat@default')
 
   function saveState() {
     storage().setItem(STORAGE_KEY, JSON.parse(JSON.stringify(state.value)))
@@ -123,6 +153,7 @@ export function useFunLink() {
       const categoryId = view.slice(9)
       const firstChild = childrenOf(categoryId)[0]
       state.value.currentView = `category:${firstChild?.id || categoryId}`
+      state.value.lastCategoryId = firstChild?.id || categoryId
     } else state.value.currentView = view
     search.value = ''
     saveState()
@@ -142,7 +173,8 @@ export function useFunLink() {
   function saveBookmark(input, afterId = null) {
     const id = input.id || `bookmark-${Date.now()}`
     const previous = state.value.bookmarks.find(bookmark => bookmark.id === id)
-    const bookmark = { ...previous, ...input, id, categoryIds: input.categoryId ? [input.categoryId] : ['cat@default'], note: previous?.note || '', deletedAt: null }
+    const categoryId = input.categoryId || 'cat@default'
+    const bookmark = { ...previous, ...input, id, categoryId, categoryIds: [categoryId], note: previous?.note || '', deletedAt: null }
     if (previous) state.value.bookmarks[state.value.bookmarks.indexOf(previous)] = bookmark
     else if (afterId) state.value.bookmarks.splice(state.value.bookmarks.findIndex(item => item.id === afterId) + 1, 0, bookmark)
     else state.value.bookmarks.push(bookmark)
@@ -166,7 +198,9 @@ export function useFunLink() {
       if (!keyword) return
       url = url.replaceAll('{q}', encodeURIComponent(keyword))
     }
-    if (window.funlink?.openExternal) window.funlink.openExternal(url, bookmark.browser)
+    if ((bookmark.browser === 'inner' || ((!bookmark.browser || bookmark.browser === 'default') && state.value.settings.browser.isOpenIn)) && window.utools?.ubrowser) {
+      window.utools.ubrowser.goto(url).run({ width: state.value.settings.browser.width, height: state.value.settings.browser.height })
+    } else if (window.funlink?.openExternal) window.funlink.openExternal(url, bookmark.browser === 'default' ? '' : bookmark.browser)
     else window.open(url, '_blank', 'noopener,noreferrer')
   }
 
@@ -194,7 +228,8 @@ export function useFunLink() {
 
   function restoreBookmark(bookmark) {
     bookmark.categoryIds = (bookmark.previousCategoryIds || []).filter(id => id === 'cat@default' || state.value.categories.some(category => category.id === id))
-    bookmark.categoryId = bookmark.categoryIds.find(id => id !== 'cat@default') || ''
+    bookmark.categoryId = bookmark.categoryIds[0] || 'cat@default'
+    if (!bookmark.categoryIds.length) bookmark.categoryIds = ['cat@default']
     bookmark.deletedAt = null
     delete bookmark.previousCategoryIds
     saveState()
@@ -249,7 +284,8 @@ export function useFunLink() {
       state.value.categories = state.value.categories.filter(item => !descendants.has(item.id))
       state.value.bookmarks.forEach(bookmark => {
         bookmark.categoryIds = categoryIdsOf(bookmark).filter(categoryId => !descendants.has(categoryId))
-        bookmark.categoryId = bookmark.categoryIds[0] || ''
+        if (!bookmark.categoryIds.length) bookmark.categoryIds = ['cat@default']
+        bookmark.categoryId = bookmark.categoryIds[0]
       })
       if (descendants.has(activeCategoryId.value)) state.value.currentView = 'inbox'
     }
@@ -278,6 +314,16 @@ export function useFunLink() {
     applyTheme()
   }
 
+  function saveSettings() {
+    saveState()
+    showToast('设置已保存！')
+  }
+
+  function clearCookies() {
+    window.utools?.db?.allDocs?.('cookie@')?.forEach(document => window.utools.db.remove(document._id))
+    showToast('cookies已清空！')
+  }
+
   function cycleTheme() {
     const order = ['system', 'light', 'dark']
     setTheme(order[(order.indexOf(state.value.theme) + 1) % order.length])
@@ -295,18 +341,23 @@ export function useFunLink() {
     showToast('备份已导出')
   }
 
-  function processDataFile(type, content) {
+  function processDataFile(type, content, options = {}) {
     try {
       if (type === 'restore') {
-        state.value = validateState(JSON.parse(content))
+        state.value = hydrateState(validateState(JSON.parse(content)))
         saveState()
         applyTheme()
         showToast('备份已恢复')
         return true
       }
       const imported = parseBookmarkHtml(content)
+      if (options.mode === 'replace') {
+        state.value.bookmarks.filter(bookmark => bookmark.quick).forEach(bookmark => window.utools?.removeFeature?.(`open-link@${bookmark.id}`))
+        state.value.categories = []
+        state.value.bookmarks = []
+      }
       const categoryId = `category-import-${Date.now()}`
-      state.value.categories.push({ id: categoryId, name: '导入书签', parentId: '' })
+      state.value.categories.push({ id: categoryId, name: '导入书签', parentId: '', tabPosition: options.tabPosition || 'left' })
       const existing = new Set(state.value.bookmarks.map(bookmark => bookmark.url))
       const bookmarks = imported.filter(bookmark => !existing.has(bookmark.url)).map((bookmark, index) => ({
         ...bookmark,
@@ -357,7 +408,7 @@ export function useFunLink() {
       if (action.code === 'search-link') search.value = String(action.payload || '')
     })
     window.utools?.onMainPush?.(({ payload }) => state.value.bookmarks
-      .filter(bookmark => !bookmark.deletedAt && !bookmark.url.includes('{q}') && bookmarkMatches(bookmark, payload))
+      .filter(bookmark => !bookmark.deletedAt && !bookmark.url.includes('{q}') && bookmarkMatches(bookmark, payload, state.value.settings.search))
       .slice(0, 6)
       .map(bookmark => ({ icon: 'logo.png', text: bookmark.title, title: bookmark.description || displayHost(bookmark.url), bookmarkId: bookmark.id })),
     ({ payload, option }) => {
@@ -373,7 +424,7 @@ export function useFunLink() {
     currentBookmarks, defaultCategoryId, childrenOf, categoryCount,
     setView, saveBookmark, saveNote, openLink, toggleFavorite, toggleQuick, moveToTrash,
     restoreBookmark, deleteBookmark, emptyTrash, reorderBookmarks, addCategory, categoryAction,
-    setTheme, cycleTheme, exportBackup, processDataFile, resetData, setupUtools, showToast,
+    setTheme, cycleTheme, saveSettings, clearCookies, exportBackup, processDataFile, resetData, setupUtools, showToast,
   }
 }
 

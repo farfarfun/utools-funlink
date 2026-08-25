@@ -14,10 +14,10 @@ export function normalizeUrl(value) {
   return url.href
 }
 
-export function bookmarkMatches(bookmark, keyword) {
+export function bookmarkMatches(bookmark, keyword, fields = ['title', 'description', 'url']) {
   const query = String(keyword || '').trim().toLocaleLowerCase()
   if (!query) return true
-  return [bookmark.title, bookmark.description, bookmark.url]
+  return fields.map(field => bookmark[field])
     .filter(Boolean)
     .some(value => String(value).toLocaleLowerCase().includes(query))
 }

@@ -21,6 +21,11 @@ const noteDialog = ref(null)
 const settingsDialog = ref(null)
 const draggedBookmarkId = ref(null)
 const context = reactive({ visible: false, type: '', bookmark: null, x: 0, y: 0 })
+const specialView = computed(() => ({
+  inbox: { label: '收集箱', icon: 'icon-inbox' },
+  quick: { label: '网页快开', icon: 'icon-fly' },
+  trash: { label: '废纸篓', icon: 'icon-dust' },
+}[state.value.currentView] || null))
 
 const contextItems = computed(() => {
   if (context.type === 'category') return [{ action: 'manage', label: '管理分类', icon: 'icon-add-circle' }]
@@ -87,8 +92,8 @@ function handleDrop(targetId) {
   draggedBookmarkId.value = null
 }
 
-function handleDataFile(type, content) {
-  if (funlink.processDataFile(type, content)) settingsDialog.value.close()
+function handleDataFile(type, content, options) {
+  if (funlink.processDataFile(type, content, options)) settingsDialog.value.close()
 }
 
 function handleReset() {
@@ -116,6 +121,7 @@ onBeforeUnmount(() => {
       :current-view="state.currentView"
       :active-root-id="activeRootId"
       :theme="state.theme"
+      :rounded="state.settings.navbar.rounded"
       @select="funlink.setView"
       @manage="openCategoryContextMenu"
       @cycle-theme="funlink.cycleTheme"
@@ -124,6 +130,10 @@ onBeforeUnmount(() => {
 
     <main class="main">
       <div class="main-view">
+        <div v-if="specialView" class="special-view-header">
+          <span class="special-view-title" :class="{ danger: state.currentView === 'trash' }"><i class="iconfont" :class="specialView.icon" aria-hidden="true" />{{ specialView.label }}</span>
+          <button type="button" aria-label="帮助" title="帮助"><i class="iconfont icon-help" aria-hidden="true" /></button>
+        </div>
         <div class="detail-content" :class="secondaryCategories.length ? `tabs-${secondaryPosition}` : ''">
           <SecondaryNavigation
             :categories="secondaryCategories"
@@ -167,8 +177,12 @@ onBeforeUnmount(() => {
     <NoteDialog ref="noteDialog" @save="funlink.saveNote" />
     <SettingsDialog
       ref="settingsDialog"
-      :theme="state.theme"
-      @theme="funlink.setTheme"
+      :settings="state.settings"
+      :bookmarks="state.bookmarks"
+      :backup-data="state"
+      @save-settings="funlink.saveSettings"
+      @clear-cookies="funlink.clearCookies"
+      @message="funlink.showToast"
       @export="funlink.exportBackup"
       @data-file="handleDataFile"
       @reset="handleReset"

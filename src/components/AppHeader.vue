@@ -4,13 +4,14 @@ defineProps({
   currentView: { type: String, required: true },
   activeRootId: { type: String, required: true },
   theme: { type: String, required: true },
+  rounded: { type: Number, default: 36 },
 })
 const emit = defineEmits(['select', 'manage', 'cycle-theme', 'settings'])
 </script>
 
 <template>
   <header class="header">
-    <nav class="top-nav" aria-label="网址分类" @contextmenu.prevent="emit('manage', $event)">
+    <nav class="top-nav" aria-label="网址分类" :style="{ borderRadius: `0 0 ${rounded}px ${rounded}px` }" @contextmenu.prevent="emit('manage', $event)">
       <button
         v-for="category in roots"
         :key="category.id"
