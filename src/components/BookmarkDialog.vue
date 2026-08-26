@@ -4,6 +4,8 @@ import { initials, normalizeUrl } from '../lib/core.mjs'
 import { safeColor } from '../composables/useFunLink.js'
 
 const COLORS = ['#8480f9', '#2792ff', '#1fd88b', '#fdcd05', '#ff7ba2', '#98d517', '#ff7f1b', '#07b882']
+// 图标以 data URL 存进 dbStorage，限制体积避免把本地库撑大。
+const MAX_ICON_BYTES = 200 * 1024
 const props = defineProps({
   categories: { type: Array, required: true },
   defaultCategoryId: { type: String, required: true },
@@ -12,6 +14,7 @@ const props = defineProps({
 const emit = defineEmits(['save'])
 const dialog = ref(null)
 const urlInput = ref(null)
+const iconInput = ref(null)
 const afterId = ref(null)
 const editing = ref(false)
 const expanded = ref(false)
@@ -32,7 +35,7 @@ const selectedCategories = computed(() => (form.categoryIds || []).flatMap(id =>
 function blankForm() {
   return {
     id: '', url: '', urls: [], title: '', description: '', categoryId: props.defaultCategoryId || 'cat@default', categoryIds: [props.defaultCategoryId || 'cat@default'],
-    iconType: 'image', icon: '', color: COLORS[props.bookmarkCount % COLORS.length], iconData: '', iconSize: 16,
+    iconType: 'text', icon: '', color: COLORS[props.bookmarkCount % COLORS.length], iconData: '', iconSize: 16,
     browser: 'default', favorite: false, quick: false,
   }
 }
@@ -63,14 +66,48 @@ function close() {
 
 function addUrl() { form.urls.push('') }
 
+function pickIcon() {
+  iconInput.value?.click()
+}
+
+function readIcon(event) {
+  const file = event.target.files?.[0]
+  event.target.value = ''
+  if (!file) return
+  if (file.size > MAX_ICON_BYTES) {
+    error.value = `图标图片不能超过 ${MAX_ICON_BYTES / 1024}KB`
+    return
+  }
+  const reader = new FileReader()
+  reader.onload = () => {
+    form.iconData = String(reader.result || '')
+    form.iconType = 'image'
+    error.value = ''
+  }
+  reader.onerror = () => { error.value = '图片读取失败' }
+  reader.readAsDataURL(file)
+}
+
+function useImageIcon() {
+  form.iconType = 'image'
+  if (!form.iconData) pickIcon()
+}
+
+function clearIcon() {
+  form.iconData = ''
+  form.iconType = 'text'
+}
+
 function submit() {
   try {
     if (!form.title.trim()) throw new Error('网站名称不能为空')
     if (!form.categoryIds?.length) throw new Error('请选择分类')
+    if (form.iconType === 'image' && !form.iconData) throw new Error('请选择图标图片，或改用文字图标')
     emit('save', {
       id: form.id,
       url: normalizeUrl(form.url),
-      urls: form.urls.filter(Boolean),
+      // 附加网址同样要过一遍协议校验，避免 javascript: 之类被存进来。
+      urls: form.urls.filter(Boolean).map(normalizeUrl),
       title: form.title.trim(),
       description: form.description.trim(),
       categoryId: form.categoryIds[0],
@@ -184,6 +221,33 @@ defineExpose({ open, close })
         </div>
 
         <template v-if="expanded">
+          <div class="icon-editor">
+            <div class="icon-type-switch" role="group" aria-label="图标类型">
+              <button type="button" :class="{ active: form.iconType === 'text' }" @click="form.iconType = 'text'">文字</button>
+              <button type="button" :class="{ active: form.iconType === 'image' }" @click="useImageIcon">图片</button>
+            </div>
+            <template v-if="form.iconType === 'text'">
+              <input v-model="form.icon" class="icon-text-input" maxlength="4" :placeholder="initials(form.title)" aria-label="图标文字" />
+              <div class="icon-colors" role="group" aria-label="图标颜色">
+                <button
+                  v-for="color in COLORS"
+                  :key="color"
+                  type="button"
+                  :class="{ active: form.color === color }"
+                  :style="{ backgroundColor: color }"
+                  :aria-label="`使用颜色 ${color}`"
+                  :aria-pressed="form.color === color"
+                  @click="form.color = color"
+                />
+              </div>
+            </template>
+            <template v-else>
+              <button type="button" class="icon-upload" @click="pickIcon">{{ form.iconData ? '更换图片' : '选择图片' }}</button>
+              <button v-if="form.iconData" type="button" class="icon-clear-image" @click="clearIcon">移除</button>
+              <small>支持本地图片，最大 200KB</small>
+            </template>
+          </div>
+
           <div class="bookmark-options-row">
             <div class="bookmark-category-field"><span><b>*</b> 所在分类</span>
               <div
@@ -261,6 +325,7 @@ defineExpose({ open, close })
           <footer class="bookmark-dialog-footer"><button class="button" type="button" @click="close">取消</button><button class="button primary" type="submit">保存</button></footer>
         </template>
       </div>
+      <input ref="iconInput" type="file" accept="image/*" hidden @change="readIcon" />
     </form>
   </dialog>
 </template>

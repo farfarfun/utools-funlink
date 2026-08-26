@@ -2,6 +2,7 @@
 import { computed, reactive, ref } from 'vue'
 import emptyImage from '../assets/empty.svg'
 import emptyDarkImage from '../assets/empty-dark.svg'
+import { readStorage, writeStorage } from '../lib/storage.js'
 
 const props = defineProps({
   settings: { type: Object, required: true },
@@ -26,10 +27,7 @@ const invalidTab = ref('results')
 const scanning = ref(false)
 const scanned = ref(0)
 const invalidResults = ref([])
-const readJson = (key, fallback) => {
-  try { return JSON.parse(localStorage.getItem(key) || JSON.stringify(fallback)) } catch { return fallback }
-}
-const ignoredLinks = ref(readJson('funlink-ignore-list', []))
+const ignoredLinks = ref(readStorage('funlink-ignore-list', []))
 const checkCandidates = computed(() => props.bookmarks.filter(bookmark => !bookmark.deletedAt && !bookmark.url.includes('{q}') && !ignoredLinks.value.some(item => item.url === bookmark.url)))
 
 function open() {
@@ -73,12 +71,12 @@ function toggleSearch(field) {
 }
 
 function openWebdav() {
-  Object.assign(webdav, readJson('funlink-webdav', { host: '', username: '', password: '' }))
+  Object.assign(webdav, readStorage('funlink-webdav', { host: '', username: '', password: '' }))
   webdavDialog.value.showModal()
 }
 
 function saveWebdav() {
-  localStorage.setItem('funlink-webdav', JSON.stringify(webdav))
+  writeStorage('funlink-webdav', webdav)
   webdavDialog.value.close()
   emit('message', '设置已保存！')
 }
@@ -154,12 +152,12 @@ async function scanInvalidLinks() {
 function ignoreLink(bookmark) {
   invalidResults.value = invalidResults.value.filter(item => item.id !== bookmark.id)
   ignoredLinks.value.unshift({ title: bookmark.title, url: bookmark.url })
-  localStorage.setItem('funlink-ignore-list', JSON.stringify(ignoredLinks.value))
+  writeStorage('funlink-ignore-list', ignoredLinks.value)
 }
 
 function unignoreLink(index) {
   ignoredLinks.value.splice(index, 1)
-  localStorage.setItem('funlink-ignore-list', JSON.stringify(ignoredLinks.value))
+  writeStorage('funlink-ignore-list', ignoredLinks.value)
 }
 
 defineExpose({ open, close })

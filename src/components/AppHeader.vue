@@ -22,6 +22,7 @@ const emit = defineEmits(['select', 'manage', 'cycle-theme', 'settings'])
         <span>{{ category.name }}</span>
       </button>
       <button type="button" :class="{ active: currentView === 'inbox' }" @click="emit('select', 'inbox')"><span>收集箱</span></button>
+      <button type="button" :class="{ active: currentView === 'favorites' }" @click="emit('select', 'favorites')"><span>常用</span></button>
       <button class="fly-button" type="button" :class="{ active: currentView === 'quick' }" title="网页快开" aria-label="网页快开" @click="emit('select', 'quick')">
         <i class="iconfont icon-fly" aria-hidden="true" />
       </button>

@@ -481,6 +481,26 @@ dialog.modal::backdrop { background: rgb(0 0 0 / 50%); }
 .web-preview-fields input { height: 30px; margin-top: 1px; padding: 0 42px 0 11px; font-weight: 500; line-height: 30px; }
 .web-preview-fields textarea { height: 31px; display: block; padding: 5px 11px; line-height: 21px; resize: none; }
 .web-preview-fields small { position: absolute; top: 6px; right: 8px; color: var(--muted); font-size: 12px; font-weight: 400; }
+.icon-editor { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.icon-editor small { color: var(--muted); font-size: 12px; }
+.icon-type-switch { display: inline-flex; overflow: hidden; border: 1px solid var(--control-border); border-radius: 8px; }
+.icon-type-switch button { height: 28px; padding: 0 12px; border: 0; background: transparent; color: var(--text); font-size: 13px; cursor: pointer; }
+.icon-type-switch button.active { background: var(--primary-soft); color: var(--primary); }
+.icon-text-input { width: 76px; height: 28px; padding: 0 10px; border: 1px solid var(--control-border); border-radius: 8px; background: transparent; color: var(--text); font-size: 13px; }
+.icon-colors { display: inline-flex; gap: 6px; }
+.icon-colors button { width: 18px; height: 18px; padding: 0; border: 2px solid transparent; border-radius: 50%; cursor: pointer; }
+.icon-colors button.active { border-color: var(--text); }
+.icon-upload, .icon-clear-image { height: 28px; padding: 0 12px; border: 1px solid var(--control-border); border-radius: 8px; background: transparent; color: var(--text); font-size: 13px; cursor: pointer; }
+.icon-clear-image { color: var(--danger); }
+.storage-alert { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin: 8px 16px 0; padding: 10px 14px; border: 1px solid var(--danger); border-radius: 10px; color: var(--danger); font-size: 13px; }
+.storage-alert span { flex: 1; min-width: 200px; }
+.storage-alert button { height: 28px; padding: 0 12px; border: 1px solid var(--danger); border-radius: 8px; background: transparent; color: var(--danger); font-size: 13px; cursor: pointer; }
+.keyword-dialog { width: min(420px, calc(100vw - 32px)); padding: 0; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); color: var(--text); }
+.keyword-dialog::backdrop { background: rgb(0 0 0 / 50%); }
+.keyword-dialog form { display: grid; gap: 12px; padding: 20px; }
+.keyword-dialog h2 { margin: 0; font-size: 16px; font-weight: 500; }
+.keyword-dialog input { height: 34px; padding: 0 12px; border: 1px solid var(--control-border); border-radius: 8px; background: transparent; color: var(--text); font-size: 14px; }
+.keyword-dialog footer { display: flex; justify-content: flex-end; gap: 8px; }
 .bookmark-options-row { display: grid; grid-template-columns: 1fr 139px; gap: 8px; margin-top: 18px; }
 .bookmark-options-row > label { display: block; font-size: 14px; font-weight: 400; }
 .bookmark-options-row > label > span, .bookmark-options-row > .bookmark-category-field > span { display: block; height: 30px; line-height: 21px; }

@@ -5,6 +5,7 @@ import BookmarkDialog from './components/BookmarkDialog.vue'
 import BookmarkGrid from './components/BookmarkGrid.vue'
 import CategoryDialog from './components/CategoryDialog.vue'
 import ContextMenu from './components/ContextMenu.vue'
+import KeywordDialog from './components/KeywordDialog.vue'
 import NoteDialog from './components/NoteDialog.vue'
 import SecondaryNavigation from './components/SecondaryNavigation.vue'
 import SettingsDialog from './components/SettingsDialog.vue'
@@ -12,8 +13,8 @@ import { useFunLink } from './composables/useFunLink.js'
 
 const funlink = useFunLink()
 const {
-  state, toast, roots, activeCategoryId, activeRootId, secondaryCategories, secondaryPosition,
-  trashCount, currentBookmarks, defaultCategoryId,
+  state, toast, storageError, keywordPrompt, roots, activeCategoryId, activeRootId,
+  secondaryCategories, secondaryPosition, trashCount, currentBookmarks, defaultCategoryId,
 } = funlink
 const bookmarkDialog = ref(null)
 const categoryDialog = ref(null)
@@ -23,6 +24,7 @@ const draggedBookmarkId = ref(null)
 const context = reactive({ visible: false, type: '', bookmark: null, x: 0, y: 0 })
 const specialView = computed(() => ({
   inbox: { label: '收集箱', icon: 'icon-inbox' },
+  favorites: { label: '常用', icon: 'icon-card' },
   quick: { label: '网页快开', icon: 'icon-fly' },
   trash: { label: '废纸篓', icon: 'icon-dust' },
 }[state.value.currentView] || null))
@@ -36,9 +38,9 @@ const contextItems = computed(() => {
     : [
         { action: 'append', label: '追加', icon: 'icon-add-circle' },
         { action: 'edit', label: '编辑', icon: 'icon-edit', divided: true },
+        { action: 'favorite', label: bookmark.favorite ? '取消常用' : '加入常用', icon: 'icon-card' },
         { action: 'quick', label: bookmark.quick ? '取消快开' : '网页快开', icon: bookmark.quick ? 'icon-quick-fill' : 'icon-quick', divided: true },
         { action: 'copy', label: '复制链接', icon: 'icon-remarks' },
-        { action: 'move', label: '移到...', icon: 'icon-move', arrow: true },
         { action: 'trash', label: '移除', icon: 'icon-delete' },
       ]
 })
@@ -71,6 +73,7 @@ function handleContextAction(action) {
   if (!bookmark) return
   if (action === 'append') bookmarkDialog.value.open(null, bookmark.id)
   if (action === 'edit') bookmarkDialog.value.open(bookmark)
+  if (action === 'favorite') funlink.toggleFavorite(bookmark)
   if (action === 'quick') funlink.toggleQuick(bookmark)
   if (action === 'copy') {
     if (window.utools?.copyText) window.utools.copyText(bookmark.url)
@@ -128,6 +131,12 @@ onBeforeUnmount(() => {
       @settings="settingsDialog.open()"
     />
 
+    <div v-if="storageError" class="storage-alert" role="alert">
+      <span>{{ storageError }}为避免覆盖原有数据，已暂停写入。可从备份恢复，或选择重置为示例数据。</span>
+      <button type="button" @click="settingsDialog.open()">从备份恢复</button>
+      <button type="button" @click="handleReset">重置数据</button>
+    </div>
+
     <main class="main">
       <div class="main-view">
         <div v-if="specialView" class="special-view-header">
@@ -175,6 +184,12 @@ onBeforeUnmount(() => {
     />
     <CategoryDialog ref="categoryDialog" :categories="state.categories" :category-count="funlink.categoryCount" @add="funlink.addCategory" @action="funlink.categoryAction" />
     <NoteDialog ref="noteDialog" @save="funlink.saveNote" />
+    <KeywordDialog
+      :visible="keywordPrompt.visible"
+      :title="keywordPrompt.title"
+      @submit="funlink.resolveKeyword"
+      @cancel="funlink.resolveKeyword('')"
+    />
     <SettingsDialog
       ref="settingsDialog"
       :settings="state.settings"

@@ -5,7 +5,8 @@ import { displayHost, safeColor } from '../composables/useFunLink.js'
 
 const props = defineProps({ bookmark: { type: Object, required: true }, trashView: Boolean })
 const emit = defineEmits(['open', 'note', 'context-menu', 'drag-start', 'drop'])
-const faviconUrl = computed(() => props.bookmark.iconData || `https://fav.lee.cm/get.php?url=${displayHost(props.bookmark.url).replace(/^www\./, '')}`)
+// 只用本地图片（用户上传后存成 data URL），不向任何第三方 favicon 服务发请求。
+const iconImage = computed(() => (props.bookmark.iconType === 'image' ? props.bookmark.iconData : '') || '')
 </script>
 
 <template>
@@ -20,7 +21,7 @@ const faviconUrl = computed(() => props.bookmark.iconData || `https://fav.lee.cm
   >
     <span
       class="bookmark-icon"
-      :class="{ image: bookmark.iconType === 'image' }"
+      :class="{ image: Boolean(iconImage) }"
       role="button"
       tabindex="0"
       :aria-label="`打开 ${bookmark.title} 的笔记`"
@@ -29,7 +30,7 @@ const faviconUrl = computed(() => props.bookmark.iconData || `https://fav.lee.cm
       @keydown.enter.stop="emit('note', bookmark)"
       @keydown.space.prevent.stop="emit('note', bookmark)"
     >
-      <img v-if="bookmark.iconType === 'image'" :src="faviconUrl" alt="" />
+      <img v-if="iconImage" :src="iconImage" alt="" />
       <span v-else :class="{ 'emoji-text': bookmark.icon === '👌' }">{{ bookmark.icon || initials(bookmark.title) }}</span>
     </span>
     <div class="bookmark-copy">

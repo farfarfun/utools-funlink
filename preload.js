@@ -77,9 +77,13 @@ function request(url, { method = 'GET', headers = {}, body = '', timeout = 10000
   })
 }
 
+// 备份目录。历史版本沿用了原插件的中文目录名，现改为 FunLink；
+// 旧备份仍留在服务器上原目录，需要时手动搬运。
+const WEBDAV_DIRECTORY = 'FunLink'
+
 function webdavTarget(config, file = '') {
   const base = new URL(config.host.endsWith('/') ? config.host : `${config.host}/`)
-  return new URL(`%E7%BD%91%E5%9D%80%E7%B2%BE%E7%81%B5/${file}`, base).href
+  return new URL(`${WEBDAV_DIRECTORY}/${file}`, base).href
 }
 
 function webdavHeaders(config, extra = {}) {
