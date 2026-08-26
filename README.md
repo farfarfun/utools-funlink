@@ -48,7 +48,7 @@ https://www.bing.com/search?q={q}
 
 ## 使用方式
 
-1. 运行 `./utools/build.sh`。
+1. 运行 `sh build.sh`。
 2. 打开 uTools 的“开发者工具”插件。
 3. 选择“新建项目”，载入 `utools/plugin.json`。
 4. 运行项目后，通过 uTools 搜索 `FunLink` 进入插件。
@@ -62,8 +62,8 @@ https://www.bing.com/search?q={q}
 ## 开发
 
 ```bash
-npm install
-npm run dev
+pnpm install
+pnpm dev
 ```
 
 访问终端输出的本地地址。浏览器预览使用 `localStorage`，在 uTools 中运行时自动切换为 `dbStorage`。
@@ -81,20 +81,21 @@ npm run dev
 - `src/lib/state.mjs`：存档校验、旧版本数据迁移与默认值补齐
 - `src/lib/legacy.mjs`：「网址精灵」备份格式的转换（示例数据也走同一套转换）
 - `src/lib/storage.js`：dbStorage / localStorage 的统一读写
-- `utools/`：uTools 插件根目录（`plugin.json`、`preload.js`、图标、`build.sh`）
+- `utools/`：uTools 插件根目录（`plugin.json`、`preload.js`、图标、构建产物 `dist/`）
 - `utools/preload.js`：文件读写、WebDav 与指定浏览器打开能力
+- `build.sh`：仓库根目录，一条命令完成校验与构建
 
 生产构建输出到 `utools/dist/`：
 
 ```bash
-npm run build
+pnpm build
 ```
 
 ## 测试
 
 ```bash
-npm test
-npm run build
+pnpm test
+sh build.sh    # 含测试、preload 与 plugin.json 校验、产物自检
 ```
 
 ## 致谢
