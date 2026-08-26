@@ -48,10 +48,13 @@ https://www.bing.com/search?q={q}
 
 ## 使用方式
 
-1. 运行 `./build.sh`。
+1. 运行 `./utools/build.sh`。
 2. 打开 uTools 的“开发者工具”插件。
-3. 选择“新建项目”，载入本目录的 `plugin.json`。
+3. 选择“新建项目”，载入 `utools/plugin.json`。
 4. 运行项目后，通过 uTools 搜索 `FunLink` 进入插件。
+
+插件根目录是 `utools/`：`plugin.json` 及其引用的 `preload.js`、`logo.png`、
+构建产物 `dist/` 都在这一层，目录内不含 `.git`，可直接用于 uTools 打包。
 
 插件内可直接点击卡片打开网址，点击卡片图标记录笔记，右键卡片可追加、编辑、加入常用、设置网页快开、复制链接或移到废纸篓。
 搜索直接使用 uTools 的子输入框，无需先聚焦。
@@ -78,9 +81,10 @@ npm run dev
 - `src/lib/state.mjs`：存档校验、旧版本数据迁移与默认值补齐
 - `src/lib/legacy.mjs`：「网址精灵」备份格式的转换（示例数据也走同一套转换）
 - `src/lib/storage.js`：dbStorage / localStorage 的统一读写
-- `preload.js`：文件读写、WebDav 与指定浏览器打开能力
+- `utools/`：uTools 插件根目录（`plugin.json`、`preload.js`、图标、`build.sh`）
+- `utools/preload.js`：文件读写、WebDav 与指定浏览器打开能力
 
-生产构建输出到 `dist/`：
+生产构建输出到 `utools/dist/`：
 
 ```bash
 npm run build
