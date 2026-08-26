@@ -7,7 +7,7 @@
   "preload": "preload.js",
   "logo": "logo.png",
   "pluginSetting": {
-    "height": 1
+    "height": 558
   },
   "features": [
     {

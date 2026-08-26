@@ -48,7 +48,7 @@ https://www.bing.com/search?q={q}
 
 ## 使用方式
 
-1. 运行 `sh build.sh`。
+1. 运行 `sh utools/build.sh`。
 2. 打开 uTools 的“开发者工具”插件。
 3. 选择“新建项目”，载入 `utools/plugin.json`。
 4. 运行项目后，通过 uTools 搜索 `FunLink` 进入插件。
@@ -81,9 +81,9 @@ pnpm dev
 - `src/lib/state.mjs`：存档校验、旧版本数据迁移与默认值补齐
 - `src/lib/legacy.mjs`：「网址精灵」备份格式的转换（示例数据也走同一套转换）
 - `src/lib/storage.js`：dbStorage / localStorage 的统一读写
-- `utools/`：uTools 插件根目录（`plugin.json`、`preload.js`、图标、构建产物 `dist/`）
+- `utools/`：uTools 插件根目录（`plugin.json`、`preload.js`、图标、构建产物 `dist/`、`build.sh`）
 - `utools/preload.js`：文件读写、WebDav 与指定浏览器打开能力
-- `build.sh`：仓库根目录，一条命令完成校验与构建
+- `utools/build.sh`：一条命令完成校验与构建（打包插件时会一并带上，不影响运行）
 
 生产构建输出到 `utools/dist/`：
 
@@ -95,7 +95,7 @@ pnpm build
 
 ```bash
 pnpm test
-sh build.sh    # 含测试、preload 与 plugin.json 校验、产物自检
+sh utools/build.sh    # 含测试、preload 与 plugin.json 校验、产物自检
 ```
 
 ## 致谢

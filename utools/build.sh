@@ -1,8 +1,8 @@
 #!/bin/sh
 set -eu
 
-ROOT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-PLUGIN_DIR="$ROOT_DIR/utools"          # 打包目录，不含 .git
+PLUGIN_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)   # 打包目录，不含 .git
+ROOT_DIR=$(dirname -- "$PLUGIN_DIR")
 cd "$ROOT_DIR"
 
 command -v node >/dev/null || { echo "error: Node.js is required" >&2; exit 1; }
