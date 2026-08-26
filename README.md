@@ -34,6 +34,8 @@ https://www.bing.com/search?q={q}
 ### 数据与外观
 
 - 导出和恢复 FunLink JSON 备份，或备份到 WebDav
+- 直接恢复「网址精灵」导出的备份（`{ db, flyDb }` 格式），分类层级、二级 Tabs 位置、
+  排序、废纸篓、收集箱、笔记、网页快开和基础设置都会一并迁移
 - 导入 Chrome、Edge、Firefox 导出的 HTML 书签，可按分隔符自动拆出名称与简介
 - 批量检查失效链接，并维护忽略名单
 - 支持浅色、深色和跟随系统主题
@@ -74,6 +76,7 @@ npm run dev
 - `src/composables/useFunLink.js`：收藏状态、数据操作和 uTools 生命周期
 - `src/lib/core.mjs`：URL、搜索、排序、书签解析等纯函数
 - `src/lib/state.mjs`：存档校验、旧版本数据迁移与默认值补齐
+- `src/lib/legacy.mjs`：「网址精灵」备份格式的转换（示例数据也走同一套转换）
 - `src/lib/storage.js`：dbStorage / localStorage 的统一读写
 - `preload.js`：文件读写、WebDav 与指定浏览器打开能力
 

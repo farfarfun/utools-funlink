@@ -1,58 +1,16 @@
 import { computed, reactive, ref } from 'vue'
 import { bookmarkMatches, createId, initials, isSafeUrl, moveCategory, moveItem, normalizeCategoryIds, parseBookmarkHtml, splitTitle } from '../lib/core.mjs'
-import { DEFAULT_SETTINGS, STORAGE_KEY, categoryIdsOf, loadState, prepareState } from '../lib/state.mjs'
+import { STORAGE_KEY, categoryIdsOf, loadState, prepareState } from '../lib/state.mjs'
+import { convertLegacyExport, isLegacyExport } from '../lib/legacy.mjs'
 import { readStorage, writeStorage } from '../lib/storage.js'
 import firstData from '../data/firstData.json'
 
 const COLORS = ['#16b8c7', '#2563eb', '#7c3aed', '#db2777', '#e85d3f', '#0f9f6e', '#64748b']
-const SPECIAL_CATEGORY_IDS = new Set(['cat@default', 'cat@dustbin', 'cat@fly', 'cat@often'])
 
+// 示例数据本身就是「网址精灵」的文档格式，直接复用导入用的转换器，
+// 免得示例数据和真实导入走两套映射、行为不一致。
 function seedState() {
-  const notes = new Map(firstData.filter(item => item.content != null).map(item => [item._id.replace(/^note_/, 'web_'), item.content]))
-  const categories = firstData
-    .filter(item => item.label && !SPECIAL_CATEGORY_IDS.has(item._id))
-    .map(item => ({
-      id: item._id,
-      name: item.label,
-      parentId: item.pid,
-      tabPosition: item.tabPosition || 'top',
-    }))
-  const bookmarks = firstData
-    .filter(item => item.title && item.url)
-    .map(item => {
-      const categoryIds = item.catIds || []
-      const categoryId = categoryIds.find(id => !SPECIAL_CATEGORY_IDS.has(id)) || ''
-      return {
-        id: item._id,
-        title: item.title,
-        url: item.url,
-        description: item.desc || '',
-        categoryId: categoryId || (categoryIds.includes('cat@default') ? 'cat@default' : ''),
-        categoryIds,
-        color: item.icon?.textColor || COLORS[0],
-        // 示例数据里的 image 图标没有随附图片数据，统一按文字图标渲染。
-        iconType: item.icon?.type === 'image' && item.icon?.data ? 'image' : 'text',
-        icon: item.icon?.text || initials(item.title),
-        iconSize: item.icon?.fontSize || 16,
-        iconData: item.icon?.data || '',
-        browser: '',
-        favorite: Boolean(item.isOften),
-        quick: Boolean(item.isFly),
-        hasNote: Boolean(item.hasNote),
-        note: notes.get(item._id) || '',
-        deletedAt: categoryIds.includes('cat@dustbin') ? 1 : null,
-      }
-    })
-
-  return {
-    version: 1,
-    theme: 'system',
-    currentView: 'category:cat_demo',
-    lastCategoryId: 'cat_demo',
-    settings: JSON.parse(JSON.stringify(DEFAULT_SETTINGS)),
-    categories,
-    bookmarks,
-  }
+  return convertLegacyExport(firstData).state
 }
 
 export function useFunLink() {
@@ -147,6 +105,15 @@ export function useFunLink() {
     }
     const cmds = bookmark.url.includes('{q}') ? [bookmark.title, { type: 'over', label: bookmark.title }] : [bookmark.title]
     window.utools.setFeature({ code, explain: `打开 ${bookmark.title}`, icon: 'logo.png', mainHide: true, cmds })
+  }
+
+  // 整体替换数据后（恢复备份 / 重置）重建快开入口，否则旧入口还在、新的一个都没注册。
+  function syncAllQuickFeatures() {
+    if (!window.utools?.setFeature) return
+    window.utools.getFeatures?.()?.forEach(feature => {
+      if (feature?.code?.startsWith('open-link@')) window.utools.removeFeature?.(feature.code)
+    })
+    state.value.bookmarks.filter(bookmark => bookmark.quick && !bookmark.deletedAt).forEach(syncQuickFeature)
   }
 
   function saveBookmark(input, afterId = null) {
@@ -339,12 +306,16 @@ export function useFunLink() {
   function processDataFile(type, content, options = {}) {
     try {
       if (type === 'restore') {
-        const { state: restored, dropped } = prepareState(JSON.parse(content))
+        const parsed = JSON.parse(content)
+        // 既接受 FunLink 自己的备份，也接受「网址精灵」导出的 { db, flyDb } / 裸数组。
+        const source = isLegacyExport(parsed) ? convertLegacyExport(parsed).state : parsed
+        const { state: restored, dropped } = prepareState(source)
         state.value = restored
         // 恢复成功即说明拿到了可用数据，可以解除只读保护。
         storageError.value = ''
         saveState()
         applyTheme()
+        syncAllQuickFeatures()
         showToast(dropped ? `备份已恢复，已跳过 ${dropped} 条无效网址` : '备份已恢复')
         return true
       }
@@ -393,6 +364,7 @@ export function useFunLink() {
     storageError.value = ''
     saveState()
     applyTheme()
+    syncAllQuickFeatures()
     showToast('已恢复示例数据')
     return true
   }
