@@ -48,7 +48,7 @@ https://www.bing.com/search?q={q}
 
 ## 使用方式
 
-1. 运行 `sh utools/build.sh`。
+1. 运行 `sh build.sh`。
 2. 打开 uTools 的“开发者工具”插件。
 3. 选择“新建项目”，载入 `utools/plugin.json`。
 4. 运行项目后，通过 uTools 搜索 `FunLink` 进入插件。
@@ -83,7 +83,7 @@ pnpm dev
 - `src/lib/storage.js`：dbStorage / localStorage 的统一读写
 - `utools/`：uTools 插件根目录（`plugin.json`、`preload.js`、图标、构建产物 `dist/`、`build.sh`）
 - `utools/preload.js`：文件读写、WebDav 与指定浏览器打开能力
-- `utools/build.sh`：一条命令完成校验与构建（打包插件时会一并带上，不影响运行）
+- `build.sh`：一条命令完成校验与构建
 
 生产构建输出到 `utools/dist/`：
 
@@ -95,7 +95,7 @@ pnpm build
 
 ```bash
 pnpm test
-sh utools/build.sh    # 含测试、preload 与 plugin.json 校验、产物自检
+sh build.sh           # 含测试、preload 与 plugin.json 校验、产物自检
 ```
 
 ## 致谢
@@ -103,3 +103,11 @@ sh utools/build.sh    # 含测试、preload 与 plugin.json 校验、产物自�
 FunLink 的产品思路和主要交互参考了 uTools 插件 [网址精灵](https://www.u-tools.cn/plugins/detail/%E7%BD%91%E5%9D%80%E7%B2%BE%E7%81%B5/)（作者：呀唔咪）。感谢原作者对网址收藏、分类导航和网页快开工作流的探索与分享。
 
 本项目为独立复刻实现，不隶属于原插件或原作者。
+
+---
+
+## 关于 farfarfun
+
+farfarfun 是一个专注于开源工具与效率应用的组织，欢迎访问组织主页了解更多项目。
+
+本项目基于 [MIT](LICENSE) 协议开源。

@@ -1,4 +1,4 @@
-import test from 'node:test'
+import { test } from 'vitest'
 import assert from 'node:assert/strict'
 import { convertLegacyExport, isLegacyExport } from '../src/lib/legacy.mjs'
 import { prepareState } from '../src/lib/state.mjs'

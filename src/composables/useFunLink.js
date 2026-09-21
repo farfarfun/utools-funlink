@@ -13,6 +13,7 @@ function seedState() {
   return convertLegacyExport(firstData).state
 }
 
+/** 提供收藏状态、导入导出及 uTools 交互能力。 @returns {object} */
 export function useFunLink() {
   const loaded = loadState({ read: readStorage, seed: seedState })
   const state = ref(loaded.state)
@@ -409,10 +410,12 @@ export function useFunLink() {
   }
 }
 
+/** 从网址提取展示用主机名。 @param {string} url @returns {string} */
 export function displayHost(url) {
   try { return new URL(url).hostname || url } catch { return url }
 }
 
+/** 校验颜色值，非法值回退到默认颜色。 @param {unknown} value @returns {string} */
 export function safeColor(value) {
   return /^(#[\da-f]{3,8}|rgba?\([\d\s.,%]+\))$/i.test(value || '') ? value : '#16b8c7'
 }

@@ -21,6 +21,7 @@ const KNOWN_BROWSERS = new Set([
   'edge', 'edge-inprivate', 'safari', 'firefox',
 ])
 
+/** 判断数据是否为网址精灵导出格式。 @param {unknown} value @returns {boolean} */
 export function isLegacyExport(value) {
   if (Array.isArray(value)) return true
   return Boolean(value && typeof value === 'object' && Array.isArray(value.db))
@@ -70,6 +71,7 @@ function orderedBookmarks(bookmarks, categories, sortLists) {
   return result
 }
 
+/** 将网址精灵备份转换为 FunLink 状态。 @param {unknown} raw @returns {{state: object, dropped: number}} */
 export function convertLegacyExport(raw) {
   const docs = (Array.isArray(raw) ? raw : raw?.db) || []
   if (!Array.isArray(docs)) throw new Error('不是有效的网址精灵备份')

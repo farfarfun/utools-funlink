@@ -1,5 +1,6 @@
 export const ALLOWED_PROTOCOLS = new Set(['http:', 'https:', 'ftp:', 'file:'])
 
+/** 将输入规范化为允许协议的绝对 URL。 @param {unknown} value @returns {string} */
 export function normalizeUrl(value) {
   const input = String(value || '').trim()
   if (!input) throw new Error('请输入网址')
@@ -14,6 +15,7 @@ export function normalizeUrl(value) {
   return url.href
 }
 
+/** 判断书签是否匹配搜索词。 @param {object} bookmark @param {unknown} keyword @param {string[]} fields @returns {boolean} */
 export function bookmarkMatches(bookmark, keyword, fields = ['title', 'description', 'url']) {
   const query = String(keyword || '').trim().toLocaleLowerCase()
   if (!query) return true
@@ -22,11 +24,13 @@ export function bookmarkMatches(bookmark, keyword, fields = ['title', 'descripti
     .some(value => String(value).toLocaleLowerCase().includes(query))
 }
 
+/** 从标题生成最多两个字符的图标缩写。 @param {unknown} title @returns {string} */
 export function initials(title) {
   const words = String(title || 'FL').trim().split(/\s+/)
   return (words.length > 1 ? words.map(word => word[0]).join('') : words[0]).slice(0, 2).toUpperCase()
 }
 
+/** 清理分类 ID 并保证至少保留一个默认分类。 @param {unknown} categoryIds @param {string} fallback @returns {string[]} */
 export function normalizeCategoryIds(categoryIds, fallback = 'cat@default') {
   const ids = Array.isArray(categoryIds) ? categoryIds.filter(id => typeof id === 'string' && id) : []
   return ids.length ? [...new Set(ids)] : [fallback]
@@ -34,6 +38,7 @@ export function normalizeCategoryIds(categoryIds, fallback = 'cat@default') {
 
 let idCounter = 0
 
+/** 生成不会在同一进程内重复的实体 ID。 @param {string} prefix @returns {string} */
 export function createId(prefix = 'id') {
   idCounter += 1
   const unique = globalThis.crypto?.randomUUID?.().slice(0, 8) || Math.random().toString(36).slice(2, 10)
@@ -41,6 +46,7 @@ export function createId(prefix = 'id') {
 }
 
 // 1.0 之前的卡片只有 categoryId / previousCategoryId，这里补齐为数组形式。
+/** 将旧版书签迁移为当前结构。 @param {object} bookmark @returns {object} */
 export function migrateBookmark(bookmark) {
   const next = { ...bookmark }
   const categoryIds = Array.isArray(bookmark.categoryIds) && bookmark.categoryIds.length
@@ -62,6 +68,7 @@ export function migrateBookmark(bookmark) {
 }
 
 // 丢弃协议不安全的卡片（例如 javascript:），但不因为单条脏数据让整次恢复失败。
+/** 迁移并过滤备份状态中的不安全网址。 @param {object} value @returns {{state: object, dropped: number}} */
 export function migrateState(value) {
   const bookmarks = value.bookmarks.filter(bookmark => isSafeUrl(bookmark?.url)).map(migrateBookmark)
   return {
@@ -80,6 +87,7 @@ export function migrateState(value) {
 }
 
 // 导入书签时按用户配置的分隔符把「名称 - 简介」拆开，长分隔符优先。
+/** 按配置分隔符拆分导入书签标题。 @param {unknown} rawTitle @param {string} separators @returns {{title: string, description: string}} */
 export function splitTitle(rawTitle, separators = '') {
   const title = String(rawTitle || '').trim()
   const marks = String(separators || '')
@@ -96,6 +104,7 @@ export function splitTitle(rawTitle, separators = '') {
   return { title, description: '' }
 }
 
+/** 将列表项移动到目标项位置。 @param {object[]} items @param {string} sourceId @param {string} targetId @returns {object[]} */
 export function moveItem(items, sourceId, targetId) {
   const from = items.findIndex(item => item.id === sourceId)
   const to = items.findIndex(item => item.id === targetId)
@@ -106,6 +115,7 @@ export function moveItem(items, sourceId, targetId) {
   return next
 }
 
+/** 移动分类并更新父分类。 @param {object[]} items @param {string} sourceId @param {string} parentId @param {string} targetId @returns {object[]} */
 export function moveCategory(items, sourceId, parentId, targetId = '') {
   const from = items.findIndex(item => item.id === sourceId)
   if (from < 0 || sourceId === targetId) return items
@@ -121,6 +131,7 @@ export function moveCategory(items, sourceId, parentId, targetId = '') {
   return next
 }
 
+/** 验证 FunLink 备份的基本结构。 @param {unknown} value @returns {object} */
 export function validateState(value) {
   if (!value || value.version !== 1 || !Array.isArray(value.categories) || !Array.isArray(value.bookmarks)) {
     throw new Error('不是有效的 FunLink 备份')
@@ -128,6 +139,7 @@ export function validateState(value) {
   return value
 }
 
+/** 判断网址是否使用允许的协议。 @param {unknown} value @returns {boolean} */
 export function isSafeUrl(value) {
   try {
     normalizeUrl(value)
@@ -137,6 +149,7 @@ export function isSafeUrl(value) {
   }
 }
 
+/** 从浏览器书签 HTML 中提取去重后的网址。 @param {string} html @returns {{title: string, url: string}[]} */
 export function parseBookmarkHtml(html) {
   const document = new DOMParser().parseFromString(html, 'text/html')
   return [...document.querySelectorAll('a[href]')].flatMap(anchor => {

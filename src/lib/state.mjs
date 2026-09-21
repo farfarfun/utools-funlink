@@ -10,10 +10,12 @@ export const DEFAULT_SETTINGS = {
   navbar: { rounded: 36 },
 }
 
+/** 读取书签的兼容分类 ID 列表。 @param {object} bookmark @returns {string[]} */
 export function categoryIdsOf(bookmark) {
   return bookmark.categoryIds || (bookmark.categoryId ? [bookmark.categoryId] : [])
 }
 
+/** 创建空白应用状态。 @returns {object} */
 export function emptyState() {
   return {
     version: 1,
@@ -26,6 +28,7 @@ export function emptyState() {
   }
 }
 
+/** 补齐状态中的默认配置和兼容字段。 @param {object} state @returns {object} */
 export function hydrateState(state) {
   state.settings = {
     ...DEFAULT_SETTINGS,
@@ -45,6 +48,7 @@ export function hydrateState(state) {
   return state
 }
 
+/** 校验、迁移并补齐已保存状态。 @param {unknown} saved @returns {{state: object, dropped: number}} */
 export function prepareState(saved) {
   const { state, dropped } = migrateState(validateState(saved))
   return { state: hydrateState(state), dropped }
@@ -52,12 +56,12 @@ export function prepareState(saved) {
 
 // 读不出来时绝不能拿演示数据顶上——那会在下一次写入时覆盖掉用户的真实数据。
 // 返回 blocked 时由界面提示用户，并暂停一切写入。
+/** 从存储读取状态，失败时返回只读提示而不覆盖数据。 @param {{read: Function, seed: Function}} deps @returns {{state: object, blocked: string, dropped: number}} */
 export function loadState({ read, seed }) {
   let saved
   try {
     saved = read(STORAGE_KEY)
   } catch (error) {
-    console.error(error)
     return { state: emptyState(), blocked: `本地数据读取失败：${error.message}。`, dropped: 0 }
   }
   if (!saved) return { state: seed(), blocked: '', dropped: 0 }
@@ -65,7 +69,6 @@ export function loadState({ read, seed }) {
     const { state, dropped } = prepareState(saved)
     return { state, blocked: '', dropped }
   } catch (error) {
-    console.error(error)
     return { state: emptyState(), blocked: `本地数据无法解析：${error.message}。`, dropped: 0 }
   }
 }

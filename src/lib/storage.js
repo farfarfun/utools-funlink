@@ -13,6 +13,7 @@ function readLocal(key, fallback) {
   }
 }
 
+/** 从 uTools dbStorage 或浏览器 localStorage 读取值。 @param {string} key @param {unknown} fallback @returns {unknown} */
 export function readStorage(key, fallback = null) {
   const store = db()
   if (!store) return readLocal(key, fallback)
@@ -26,6 +27,7 @@ export function readStorage(key, fallback = null) {
   return legacy
 }
 
+/** 将值序列化后写入当前运行环境的存储。 @param {string} key @param {unknown} value @returns {void} */
 export function writeStorage(key, value) {
   // dbStorage 不接受 Vue 的响应式代理，这里统一转成纯对象。
   const plain = JSON.parse(JSON.stringify(value))
