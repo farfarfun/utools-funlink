@@ -1,6 +1,6 @@
 import { test } from 'vitest'
 import assert from 'node:assert/strict'
-import { STORAGE_KEY, loadState, prepareState } from '../src/lib/state.mjs'
+import { STORAGE_KEY, loadState, prepareState } from '../src/lib/state.ts'
 
 // 重构前（commit 6b8331a）真实的存档形状：同样的 key、同样的 version 1，
 // 但卡片只有 categoryId，废纸篓项只有 previousCategoryId。

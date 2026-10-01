@@ -1,7 +1,7 @@
 import { test } from 'vitest'
 import assert from 'node:assert/strict'
-import { convertLegacyExport, isLegacyExport } from '../src/lib/legacy.mjs'
-import { prepareState } from '../src/lib/state.mjs'
+import { convertLegacyExport, isLegacyExport } from '../src/lib/legacy.ts'
+import { prepareState } from '../src/lib/state.ts'
 
 // 取自「网址精灵」真实导出的各类文档形状（内容已简化）。
 const EXPORT = {

@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import { nextTick, ref, watch } from 'vue'
 
 // Electron 不实现 window.prompt，站内搜索（网址里的 {q}）用这个对话框取关键词。

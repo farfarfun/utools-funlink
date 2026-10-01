@@ -1,8 +1,8 @@
-<script setup>
+<script setup lang="ts">
 import { computed, reactive, ref } from 'vue'
 import emptyImage from '../assets/empty.svg'
 import emptyDarkImage from '../assets/empty-dark.svg'
-import { readStorage, writeStorage } from '../lib/storage.js'
+import { readStorage, writeStorage } from '../lib/storage'
 
 const props = defineProps({
   settings: { type: Object, required: true },
@@ -87,6 +87,7 @@ async function webdavAction(action) {
   webdavLoading.value = true
   try {
     if (action === 'backup') {
+      if (!window.confirm('导出内容为明文，可能包含网址、笔记和设置。确认上传到 WebDav？')) return
       await window.funlink.webdavBackup(JSON.parse(JSON.stringify(webdav)), JSON.stringify(props.backupData, null, 2))
       emit('message', '备份到WebDav成功！')
     } else {

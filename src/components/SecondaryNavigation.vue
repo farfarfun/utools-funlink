@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 defineProps({
   categories: { type: Array, required: true },
   activeCategoryId: { type: String, required: true },

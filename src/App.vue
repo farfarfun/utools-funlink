@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import AppHeader from './components/AppHeader.vue'
 import BookmarkDialog from './components/BookmarkDialog.vue'
@@ -9,7 +9,7 @@ import KeywordDialog from './components/KeywordDialog.vue'
 import NoteDialog from './components/NoteDialog.vue'
 import SecondaryNavigation from './components/SecondaryNavigation.vue'
 import SettingsDialog from './components/SettingsDialog.vue'
-import { useFunLink } from './composables/useFunLink.js'
+import { useFunLink } from './composables/useFunLink'
 
 const funlink = useFunLink()
 const {

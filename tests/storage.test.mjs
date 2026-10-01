@@ -1,6 +1,6 @@
 import { test } from 'vitest'
 import assert from 'node:assert/strict'
-import { readStorage, writeStorage } from '../src/lib/storage.js'
+import { readStorage, writeStorage } from '../src/lib/storage.ts'
 
 function fakeLocalStorage(initial = {}) {
   const map = new Map(Object.entries(initial))

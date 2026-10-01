@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import {
   bookmarkMatches, createId, isSafeUrl, migrateBookmark, migrateState, moveCategory, moveItem,
   normalizeCategoryIds, normalizeUrl, splitTitle, validateState,
-} from '../src/lib/core.mjs'
+} from '../src/lib/core.ts'
 
 test('core bookmark operations stay predictable', () => {
   assert.equal(normalizeUrl('example.com'), 'https://example.com/')

@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 defineProps({
   roots: { type: Array, required: true },
   currentView: { type: String, required: true },

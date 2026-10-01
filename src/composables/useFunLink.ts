@@ -1,8 +1,8 @@
 import { computed, reactive, ref } from 'vue'
-import { bookmarkMatches, createId, initials, isSafeUrl, moveCategory, moveItem, normalizeCategoryIds, parseBookmarkHtml, splitTitle } from '../lib/core.mjs'
-import { STORAGE_KEY, categoryIdsOf, loadState, prepareState } from '../lib/state.mjs'
-import { convertLegacyExport, isLegacyExport } from '../lib/legacy.mjs'
-import { readStorage, writeStorage } from '../lib/storage.js'
+import { bookmarkMatches, createId, initials, isSafeUrl, moveCategory, moveItem, normalizeCategoryIds, parseBookmarkHtml, splitTitle } from '../lib/core'
+import { STORAGE_KEY, categoryIdsOf, loadState, prepareState } from '../lib/state'
+import { convertLegacyExport, isLegacyExport } from '../lib/legacy'
+import { readStorage, writeStorage } from '../lib/storage'
 import firstData from '../data/firstData.json'
 
 const COLORS = ['#16b8c7', '#2563eb', '#7c3aed', '#db2777', '#e85d3f', '#0f9f6e', '#64748b']
@@ -73,7 +73,7 @@ export function useFunLink() {
 
   // Electron 不实现 window.prompt，站内搜索的关键词改用应用内对话框获取。
   function askKeyword(title) {
-    return new Promise(resolve => {
+    return new Promise<string>(resolve => {
       keywordResolve = resolve
       Object.assign(keywordPrompt, { visible: true, title, value: '' })
     })
@@ -294,6 +294,7 @@ export function useFunLink() {
   }
 
   function exportBackup() {
+    if (!window.confirm('导出内容为明文，可能包含网址、笔记和设置。确认备份到电脑？')) return
     const content = JSON.stringify(state.value, null, 2)
     if (window.funlink?.saveBackup?.(content)) return showToast('备份已导出')
     const link = document.createElement('a')
@@ -304,7 +305,7 @@ export function useFunLink() {
     showToast('备份已导出')
   }
 
-  function processDataFile(type, content, options = {}) {
+  function processDataFile(type, content, options: { mode?: string, tabPosition?: string } = {}) {
     try {
       if (type === 'restore') {
         const parsed = JSON.parse(content)

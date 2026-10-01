@@ -1,7 +1,7 @@
-<script setup>
+<script setup lang="ts">
 import { computed } from 'vue'
-import { initials } from '../lib/core.mjs'
-import { displayHost, safeColor } from '../composables/useFunLink.js'
+import { initials } from '../lib/core'
+import { displayHost, safeColor } from '../composables/useFunLink'
 
 const props = defineProps({ bookmark: { type: Object, required: true }, trashView: Boolean })
 const emit = defineEmits(['open', 'note', 'context-menu', 'drag-start', 'drop'])

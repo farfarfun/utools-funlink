@@ -1,7 +1,7 @@
-<script setup>
+<script setup lang="ts">
 import { computed, nextTick, reactive, ref, watch } from 'vue'
-import { initials, normalizeUrl } from '../lib/core.mjs'
-import { safeColor } from '../composables/useFunLink.js'
+import { initials, normalizeUrl } from '../lib/core'
+import { safeColor } from '../composables/useFunLink'
 
 const COLORS = ['#8480f9', '#2792ff', '#1fd88b', '#fdcd05', '#ff7ba2', '#98d517', '#ff7f1b', '#07b882']
 // 图标以 data URL 存进 dbStorage，限制体积避免把本地库撑大。

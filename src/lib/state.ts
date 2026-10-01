@@ -1,4 +1,4 @@
-import { migrateState, normalizeCategoryIds, validateState } from './core.mjs'
+import { migrateState, normalizeCategoryIds, validateState } from './core'
 
 // 纯状态逻辑：不依赖 vue / uTools / 示例数据，方便直接跑单测。
 export const STORAGE_KEY = 'funlink-state-v1'

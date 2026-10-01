@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import { nextTick, ref, watch } from 'vue'
 
 const props = defineProps({ items: { type: Array, required: true }, x: { type: Number, required: true }, y: { type: Number, required: true } })

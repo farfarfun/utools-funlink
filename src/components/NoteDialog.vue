@@ -1,7 +1,7 @@
-<script setup>
+<script setup lang="ts">
 import { nextTick, ref } from 'vue'
-import { initials } from '../lib/core.mjs'
-import { safeColor } from '../composables/useFunLink.js'
+import { initials } from '../lib/core'
+import { safeColor } from '../composables/useFunLink'
 
 const emit = defineEmits(['save'])
 const dialog = ref(null)

@@ -1,5 +1,5 @@
-import { initials, isSafeUrl } from './core.mjs'
-import { DEFAULT_SETTINGS } from './state.mjs'
+import { initials, isSafeUrl } from './core'
+import { DEFAULT_SETTINGS } from './state'
 
 // 「网址精灵」导出的备份结构：
 //   { db: [...], flyDb: [...] }        完整导出

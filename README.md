@@ -76,11 +76,11 @@ pnpm dev
 主要目录：
 
 - `src/components/`：导航、网址卡片和各类对话框
-- `src/composables/useFunLink.js`：收藏状态、数据操作和 uTools 生命周期
-- `src/lib/core.mjs`：URL、搜索、排序、书签解析等纯函数
-- `src/lib/state.mjs`：存档校验、旧版本数据迁移与默认值补齐
-- `src/lib/legacy.mjs`：「网址精灵」备份格式的转换（示例数据也走同一套转换）
-- `src/lib/storage.js`：dbStorage / localStorage 的统一读写
+- `src/composables/useFunLink.ts`：收藏状态、数据操作和 uTools 生命周期
+- `src/lib/core.ts`：URL、搜索、排序、书签解析等纯函数
+- `src/lib/state.ts`：存档校验、旧版本数据迁移与默认值补齐
+- `src/lib/legacy.ts`：「网址精灵」备份格式的转换（示例数据也走同一套转换）
+- `src/lib/storage.ts`：dbStorage / localStorage 的统一读写
 - `utools/`：uTools 插件根目录（`plugin.json`、`preload.js`、图标、构建产物 `dist/`、`build.sh`）
 - `utools/preload.js`：文件读写、WebDav 与指定浏览器打开能力
 - `build.sh`：一条命令完成校验与构建
@@ -108,6 +108,10 @@ FunLink 的产品思路和主要交互参考了 uTools 插件 [网址精灵](htt
 
 ## 关于 farfarfun
 
-farfarfun 是一个专注于开源工具与效率应用的组织，欢迎访问组织主页了解更多项目。
+[farfarfun](https://github.com/farfarfun) 是一个专注于实用工具库的开源组织，
+涵盖云存储、数据处理、AI、多媒体与开发工具链等方向。
+
+- 🏠 组织主页：<https://github.com/farfarfun>
+- 📧 联系：farfarfun@qq.com
 
 本项目基于 [MIT](LICENSE) 协议开源。
