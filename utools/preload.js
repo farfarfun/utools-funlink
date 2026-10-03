@@ -52,14 +52,37 @@ function openWithBrowser(url, browser) {
   }
 }
 
+function requestContext(method, target) {
+  const safeTarget = new URL(target)
+  safeTarget.username = ''
+  safeTarget.password = ''
+  safeTarget.search = ''
+  safeTarget.hash = ''
+  return `${method} ${safeTarget.href}`
+}
+
+function requestError(context, error) {
+  return new Error(`${context}: ${error.message}`, { cause: error })
+}
+
 function request(url, { method = 'GET', headers = {}, body = '', timeout = 10000, redirects = 3 } = {}) {
   return new Promise((resolve, reject) => {
-    const target = new URL(url)
+    let target
+    try {
+      target = new URL(url)
+    } catch (error) {
+      return reject(requestError(`${method} 无效地址`, error))
+    }
+    const context = requestContext(method, target)
     const client = target.protocol === 'https:' ? https : http
     const req = client.request(target, { method, headers }, response => {
       if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location && redirects) {
         response.resume()
-        return resolve(request(new URL(response.headers.location, target).href, { method, headers, body, timeout, redirects: redirects - 1 }))
+        try {
+          return resolve(request(new URL(response.headers.location, target).href, { method, headers, body, timeout, redirects: redirects - 1 }))
+        } catch (error) {
+          return reject(requestError(context, error))
+        }
       }
       const chunks = []
       response.on('data', chunk => chunks.push(chunk))
@@ -67,11 +90,11 @@ function request(url, { method = 'GET', headers = {}, body = '', timeout = 10000
         const content = Buffer.concat(chunks).toString('utf8')
         if (response.statusCode >= 200 && response.statusCode < 300 || method === 'MKCOL' && response.statusCode === 405) {
           resolve({ status: response.statusCode, body: content })
-        } else reject(new Error(`${response.statusCode} ${response.statusMessage || '请求失败'}`))
+        } else reject(new Error(`${context}: ${response.statusCode} ${response.statusMessage || '请求失败'}`))
       })
     })
     req.setTimeout(timeout, () => req.destroy(new Error(`${timeout / 1000}秒超时`)))
-    req.on('error', reject)
+    req.on('error', error => reject(requestError(context, error)))
     if (body) req.write(body)
     req.end()
   })

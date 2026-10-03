@@ -42,6 +42,11 @@ pnpm-debug.log*
 npm-debug.log*
 yarn-error.log*
 
+# Python 运行时生成物
+__pycache__/
+*.pyc
+.venv/
+
 # ---- 本仓库原有的自定义规则（合并时保留）----
 /utools/dist/
 /node_modules/
