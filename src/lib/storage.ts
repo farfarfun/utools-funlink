@@ -1,10 +1,16 @@
+interface DbStorage {
+  getItem: (key: string) => unknown
+  setItem: (key: string, value: unknown) => void
+  removeItem?: (key: string) => void
+}
+
 // uTools 内走 dbStorage，浏览器预览时退回 localStorage。
 // 统一从这里读写，避免同一份数据一半在 dbStorage、一半在 localStorage。
-function db() {
+function db(): DbStorage | null {
   return window.utools?.dbStorage || null
 }
 
-function readLocal(key, fallback) {
+function readLocal(key: string, fallback: unknown) {
   try {
     const raw = localStorage.getItem(key)
     return raw == null ? fallback : JSON.parse(raw)
@@ -13,8 +19,8 @@ function readLocal(key, fallback) {
   }
 }
 
-/** 从 uTools dbStorage 或浏览器 localStorage 读取值。 @param {string} key @param {unknown} fallback @returns {unknown} */
-export function readStorage(key, fallback = null) {
+/** 从 uTools dbStorage 或浏览器 localStorage 读取值。 */
+export function readStorage(key: string, fallback: unknown = null): unknown {
   const store = db()
   if (!store) return readLocal(key, fallback)
   const value = store.getItem(key)
@@ -27,8 +33,8 @@ export function readStorage(key, fallback = null) {
   return legacy
 }
 
-/** 将值序列化后写入当前运行环境的存储。 @param {string} key @param {unknown} value @returns {void} */
-export function writeStorage(key, value) {
+/** 将值序列化后写入当前运行环境的存储。 */
+export function writeStorage(key: string, value: unknown): void {
   // dbStorage 不接受 Vue 的响应式代理，这里统一转成纯对象。
   const plain = JSON.parse(JSON.stringify(value))
   const store = db()

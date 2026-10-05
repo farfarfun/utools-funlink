@@ -1,5 +1,6 @@
 import { initials, isSafeUrl } from './core'
 import { DEFAULT_SETTINGS } from './state'
+import type { AppState, Bookmark, Category, Settings } from './types'
 
 // 「网址精灵」导出的备份结构：
 //   { db: [...], flyDb: [...] }        完整导出
@@ -21,44 +22,46 @@ const KNOWN_BROWSERS = new Set([
   'edge', 'edge-inprivate', 'safari', 'firefox',
 ])
 
-/** 判断数据是否为网址精灵导出格式。 @param {unknown} value @returns {boolean} */
-export function isLegacyExport(value) {
+/** 判断数据是否为网址精灵导出格式。 */
+export function isLegacyExport(value: unknown): boolean {
   if (Array.isArray(value)) return true
-  return Boolean(value && typeof value === 'object' && Array.isArray(value.db))
+  return Boolean(value && typeof value === 'object' && Array.isArray((value as { db?: unknown }).db))
 }
 
-function normalizeBrowser(value) {
+function normalizeBrowser(value: unknown): Bookmark['browser'] {
   // 老数据里出现过数字（0 / 2）之类的历史值，一律回落到「跟随默认设置」。
-  return typeof value === 'string' && KNOWN_BROWSERS.has(value) ? value : 'default'
+  return typeof value === 'string' && KNOWN_BROWSERS.has(value) ? value as Bookmark['browser'] : 'default'
 }
 
-function orderedCategories(categories, sortDoc) {
-  const order = Array.isArray(sortDoc?.value) ? sortDoc.value : null
+type LegacyDoc = Record<string, any>
+
+function orderedCategories(categories: Category[], sortDoc: LegacyDoc | null): Category[] {
+  const order: LegacyDoc[] | null = Array.isArray(sortDoc?.value) ? sortDoc.value : null
   if (!order) return categories
   const byId = new Map(categories.map(category => [category.id, category]))
-  const result = []
-  const take = id => {
-    const category = byId.get(id)
+  const result: Category[] = []
+  const take = (id: unknown) => {
+    const category = byId.get(id as string)
     if (!category) return
-    byId.delete(id)
+    byId.delete(id as string)
     result.push(category)
   }
   order.forEach(root => {
     take(root?._id)
-    ;(Array.isArray(root?.children) ? root.children : []).forEach(child => take(child?._id))
+    ;(Array.isArray(root?.children) ? root.children : []).forEach((child: LegacyDoc) => take(child?._id))
   })
   // 排序表里没提到的分类（可能是后来加的）按原顺序补在后面。
   categories.forEach(category => { if (byId.has(category.id)) take(category.id) })
   return result
 }
 
-function orderedBookmarks(bookmarks, categories, sortLists) {
+function orderedBookmarks(bookmarks: Bookmark[], categories: Category[], sortLists: Map<string, unknown>): Bookmark[] {
   const byId = new Map(bookmarks.map(bookmark => [bookmark.id, bookmark]))
-  const result = []
-  const take = id => {
-    const bookmark = byId.get(id)
+  const result: Bookmark[] = []
+  const take = (id: unknown) => {
+    const bookmark = byId.get(id as string)
     if (!bookmark) return
-    byId.delete(id)
+    byId.delete(id as string)
     result.push(bookmark)
   }
   // 按分类顺序铺开，让同一分类的卡片在数组里连续，拖拽排序才符合直觉。
@@ -71,17 +74,17 @@ function orderedBookmarks(bookmarks, categories, sortLists) {
   return result
 }
 
-/** 将网址精灵备份转换为 FunLink 状态。 @param {unknown} raw @returns {{state: object, dropped: number}} */
-export function convertLegacyExport(raw) {
-  const docs = (Array.isArray(raw) ? raw : raw?.db) || []
+/** 将网址精灵备份转换为 FunLink 状态。 */
+export function convertLegacyExport(raw: unknown): { state: AppState, dropped: number } {
+  const docs: LegacyDoc[] = (Array.isArray(raw) ? raw : (raw as LegacyDoc)?.db) || []
   if (!Array.isArray(docs)) throw new Error('不是有效的网址精灵备份')
 
-  const notes = new Map()
-  const sortLists = new Map()
-  let sortCategoryDoc = null
-  let settingDoc = null
-  const categoryDocs = []
-  const bookmarkDocs = []
+  const notes = new Map<string, unknown>()
+  const sortLists = new Map<string, unknown>()
+  let sortCategoryDoc: LegacyDoc | null = null
+  let settingDoc: LegacyDoc | null = null
+  const categoryDocs: LegacyDoc[] = []
+  const bookmarkDocs: LegacyDoc[] = []
 
   docs.forEach(doc => {
     if (!doc || typeof doc !== 'object') return
@@ -95,7 +98,7 @@ export function convertLegacyExport(raw) {
   })
 
   const categories = orderedCategories(
-    categoryDocs.map(doc => ({
+    categoryDocs.map((doc): Category => ({
       id: doc._id,
       name: String(doc.label || '').trim() || '未命名分类',
       parentId: SPECIAL_CATEGORY_IDS.has(doc.pid) ? '' : doc.pid || '',
@@ -106,8 +109,8 @@ export function convertLegacyExport(raw) {
 
   const categoryIds = new Set(categories.map(category => category.id))
   const usable = bookmarkDocs.filter(doc => isSafeUrl(doc.url))
-  const bookmarks = usable.map((doc, index) => {
-    const rawCatIds = Array.isArray(doc.catIds) ? doc.catIds : []
+  const bookmarks: Bookmark[] = usable.map((doc, index): Bookmark => {
+    const rawCatIds: string[] = Array.isArray(doc.catIds) ? doc.catIds : []
     const own = rawCatIds.filter(id => categoryIds.has(id) || id === 'cat@default')
     const icon = doc.icon || {}
     // 原插件的 image 图标多数没有随附数据（图是去第三方 favicon 现取的），
@@ -119,8 +122,8 @@ export function convertLegacyExport(raw) {
       title,
       url: doc.url,
       urls: (Array.isArray(doc.urls) ? doc.urls : [])
-        .map(item => (typeof item === 'string' ? item : item?.value))
-        .filter(url => url && isSafeUrl(url)),
+        .map((item: unknown) => (typeof item === 'string' ? item : (item as { value?: string })?.value))
+        .filter((url): url is string => Boolean(url) && isSafeUrl(url)),
       description: doc.desc || '',
       categoryId: own[0] || 'cat@default',
       categoryIds: own.length ? own : ['cat@default'],
@@ -132,14 +135,14 @@ export function convertLegacyExport(raw) {
       browser: normalizeBrowser(doc.browser),
       favorite: Boolean(doc.isOften),
       quick: Boolean(doc.isFly),
-      note: notes.get(doc._id) || '',
+      note: String(notes.get(doc._id) || ''),
       hasNote: Boolean(doc.hasNote) || notes.has(doc._id),
       // 原插件用 cat@dustbin 标记废纸篓，这里转成 deletedAt 时间戳。
       deletedAt: rawCatIds.includes('cat@dustbin') ? 1 : null,
     }
   })
 
-  const settings = {
+  const settings: Settings = {
     ...DEFAULT_SETTINGS,
     ...(settingDoc?.value || {}),
     browser: { ...DEFAULT_SETTINGS.browser, ...(settingDoc?.value?.browser || {}) },
@@ -147,7 +150,7 @@ export function convertLegacyExport(raw) {
     search: settingDoc?.value?.search?.length ? settingDoc.value.search : DEFAULT_SETTINGS.search.slice(),
   }
   // 原插件用 desc 作为简介字段名，搜索配置里的 desc 要换成本项目的 description。
-  settings.search = [...new Set(settings.search.map(field => (field === 'desc' ? 'description' : field)))]
+  settings.search = [...new Set(settings.search.map((field: string) => (field === 'desc' ? 'description' : field)))]
 
   const firstRoot = categories.find(category => !category.parentId)
   return {

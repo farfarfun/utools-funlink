@@ -3,6 +3,7 @@ import { bookmarkMatches, createId, initials, isSafeUrl, moveCategory, moveItem,
 import { STORAGE_KEY, categoryIdsOf, loadState, prepareState } from '../lib/state'
 import { convertLegacyExport, isLegacyExport } from '../lib/legacy'
 import { readStorage, writeStorage } from '../lib/storage'
+import type { AppState, Bookmark, Category } from '../lib/types'
 import firstData from '../data/firstData.json'
 
 const COLORS = ['#16b8c7', '#2563eb', '#7c3aed', '#db2777', '#e85d3f', '#0f9f6e', '#64748b']
@@ -225,9 +226,9 @@ export function useFunLink() {
     return state.value.bookmarks.filter(bookmark => !bookmark.deletedAt && categoryIdsOf(bookmark).includes(categoryId)).length
   }
 
-  function addCategory(name, parentId, afterId = '') {
+  function addCategory(name: string, parentId: string, afterId = '') {
     if (!name.trim()) return
-    const category = { id: createId('category'), name: name.trim(), parentId, tabPosition: 'top' }
+    const category: Category = { id: createId('category'), name: name.trim(), parentId, tabPosition: 'top' }
     const index = afterId ? state.value.categories.findIndex(item => item.id === afterId) : -1
     if (index >= 0) state.value.categories.splice(index + 1, 0, category)
     else state.value.categories.push(category)
@@ -305,7 +306,7 @@ export function useFunLink() {
     showToast('备份已导出')
   }
 
-  function processDataFile(type, content, options: { mode?: string, tabPosition?: string } = {}) {
+  function processDataFile(type: 'restore' | 'import', content: string, options: { mode?: string, tabPosition?: Category['tabPosition'] } = {}): boolean {
     try {
       if (type === 'restore') {
         const parsed = JSON.parse(content)
@@ -330,7 +331,7 @@ export function useFunLink() {
       const categoryId = createId('category-import')
       state.value.categories.push({ id: categoryId, name: '导入书签', parentId: '', tabPosition: options.tabPosition || 'left' })
       const existing = new Set(state.value.bookmarks.map(bookmark => bookmark.url))
-      const bookmarks = imported.filter(bookmark => !existing.has(bookmark.url)).map((bookmark, index) => {
+      const bookmarks: Bookmark[] = imported.filter(bookmark => !existing.has(bookmark.url)).map((bookmark, index): Bookmark => {
         // 浏览器书签常写成「名称 - 简介」，按设置里的分隔符拆开。
         const { title, description } = splitTitle(bookmark.title, state.value.settings.importSplit)
         return {

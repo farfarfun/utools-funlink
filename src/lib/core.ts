@@ -1,11 +1,13 @@
+import type { AppState, Bookmark, Category, RawState } from './types'
+
 export const ALLOWED_PROTOCOLS = new Set(['http:', 'https:', 'ftp:', 'file:'])
 
-/** 将输入规范化为允许协议的绝对 URL。 @param {unknown} value @returns {string} */
-export function normalizeUrl(value) {
+/** 将输入规范化为允许协议的绝对 URL。 */
+export function normalizeUrl(value: unknown): string {
   const input = String(value || '').trim()
   if (!input) throw new Error('请输入网址')
   const candidate = /^[a-z][a-z\d+.-]*:/i.test(input) ? input : `https://${input}`
-  let url
+  let url: URL
   try {
     url = new URL(candidate)
   } catch {
@@ -15,8 +17,8 @@ export function normalizeUrl(value) {
   return url.href
 }
 
-/** 判断书签是否匹配搜索词。 @param {object} bookmark @param {unknown} keyword @param {string[]} fields @returns {boolean} */
-export function bookmarkMatches(bookmark, keyword, fields = ['title', 'description', 'url']) {
+/** 判断书签是否匹配搜索词。 */
+export function bookmarkMatches(bookmark: Record<string, unknown>, keyword: unknown, fields: string[] = ['title', 'description', 'url']): boolean {
   const query = String(keyword || '').trim().toLocaleLowerCase()
   if (!query) return true
   return fields.map(field => bookmark[field])
@@ -24,41 +26,41 @@ export function bookmarkMatches(bookmark, keyword, fields = ['title', 'descripti
     .some(value => String(value).toLocaleLowerCase().includes(query))
 }
 
-/** 从标题生成最多两个字符的图标缩写。 @param {unknown} title @returns {string} */
-export function initials(title) {
+/** 从标题生成最多两个字符的图标缩写。 */
+export function initials(title: unknown): string {
   const words = String(title || 'FL').trim().split(/\s+/)
   return (words.length > 1 ? words.map(word => word[0]).join('') : words[0]).slice(0, 2).toUpperCase()
 }
 
-/** 清理分类 ID 并保证至少保留一个默认分类。 @param {unknown} categoryIds @param {string} fallback @returns {string[]} */
-export function normalizeCategoryIds(categoryIds, fallback = 'cat@default') {
-  const ids = Array.isArray(categoryIds) ? categoryIds.filter(id => typeof id === 'string' && id) : []
+/** 清理分类 ID 并保证至少保留一个默认分类。 */
+export function normalizeCategoryIds(categoryIds: unknown, fallback = 'cat@default'): string[] {
+  const ids = Array.isArray(categoryIds) ? categoryIds.filter((id): id is string => typeof id === 'string' && Boolean(id)) : []
   return ids.length ? [...new Set(ids)] : [fallback]
 }
 
 let idCounter = 0
 
-/** 生成不会在同一进程内重复的实体 ID。 @param {string} prefix @returns {string} */
-export function createId(prefix = 'id') {
+/** 生成不会在同一进程内重复的实体 ID。 */
+export function createId(prefix = 'id'): string {
   idCounter += 1
   const unique = globalThis.crypto?.randomUUID?.().slice(0, 8) || Math.random().toString(36).slice(2, 10)
   return `${prefix}-${Date.now().toString(36)}-${idCounter.toString(36)}${unique}`
 }
 
 // 1.0 之前的卡片只有 categoryId / previousCategoryId，这里补齐为数组形式。
-/** 将旧版书签迁移为当前结构。 @param {object} bookmark @returns {object} */
-export function migrateBookmark(bookmark) {
-  const next = { ...bookmark }
+/** 将旧版书签迁移为当前结构。 */
+export function migrateBookmark(bookmark: Record<string, unknown>): Bookmark {
+  const next = { ...bookmark } as Bookmark
   const categoryIds = Array.isArray(bookmark.categoryIds) && bookmark.categoryIds.length
     ? bookmark.categoryIds
     : [bookmark.categoryId].filter(Boolean)
   next.categoryIds = normalizeCategoryIds(categoryIds)
   next.categoryId = next.categoryIds[0]
 
-  const previous = Array.isArray(bookmark.previousCategoryIds)
+  const previous: unknown[] = Array.isArray(bookmark.previousCategoryIds)
     ? bookmark.previousCategoryIds
     : [bookmark.previousCategoryId].filter(Boolean)
-  if (previous.length) next.previousCategoryIds = previous.filter(id => typeof id === 'string' && id)
+  if (previous.length) next.previousCategoryIds = previous.filter((id): id is string => typeof id === 'string' && Boolean(id))
   delete next.previousCategoryId
 
   // 旧版把 iconType 默认设成 image 却从不写 iconData——图标是去第三方 favicon 服务现取的。
@@ -68,27 +70,27 @@ export function migrateBookmark(bookmark) {
 }
 
 // 丢弃协议不安全的卡片（例如 javascript:），但不因为单条脏数据让整次恢复失败。
-/** 迁移并过滤备份状态中的不安全网址。 @param {object} value @returns {{state: object, dropped: number}} */
-export function migrateState(value) {
+/** 迁移并过滤备份状态中的不安全网址。 */
+export function migrateState(value: RawState): { state: Omit<AppState, 'settings'> & Record<string, unknown>, dropped: number } {
   const bookmarks = value.bookmarks.filter(bookmark => isSafeUrl(bookmark?.url)).map(migrateBookmark)
   return {
     state: {
       ...value,
-      categories: value.categories.map(category => ({
-        id: category.id,
-        name: category.name || '',
-        parentId: category.parentId || '',
-        tabPosition: category.tabPosition || 'top',
+      categories: value.categories.map((category): Category => ({
+        id: String(category.id),
+        name: String(category.name || ''),
+        parentId: String(category.parentId || ''),
+        tabPosition: (category.tabPosition as Category['tabPosition']) || 'top',
       })),
       bookmarks,
-    },
+    } as Omit<AppState, 'settings'> & Record<string, unknown>,
     dropped: value.bookmarks.length - bookmarks.length,
   }
 }
 
 // 导入书签时按用户配置的分隔符把「名称 - 简介」拆开，长分隔符优先。
-/** 按配置分隔符拆分导入书签标题。 @param {unknown} rawTitle @param {string} separators @returns {{title: string, description: string}} */
-export function splitTitle(rawTitle, separators = '') {
+/** 按配置分隔符拆分导入书签标题。 */
+export function splitTitle(rawTitle: unknown, separators = ''): { title: string, description: string } {
   const title = String(rawTitle || '').trim()
   const marks = String(separators || '')
     .split(',')
@@ -104,8 +106,8 @@ export function splitTitle(rawTitle, separators = '') {
   return { title, description: '' }
 }
 
-/** 将列表项移动到目标项位置。 @param {object[]} items @param {string} sourceId @param {string} targetId @returns {object[]} */
-export function moveItem(items, sourceId, targetId) {
+/** 将列表项移动到目标项位置。 */
+export function moveItem<T extends { id: string }>(items: T[], sourceId: string, targetId: string): T[] {
   const from = items.findIndex(item => item.id === sourceId)
   const to = items.findIndex(item => item.id === targetId)
   if (from < 0 || to < 0 || from === to) return items
@@ -115,8 +117,8 @@ export function moveItem(items, sourceId, targetId) {
   return next
 }
 
-/** 移动分类并更新父分类。 @param {object[]} items @param {string} sourceId @param {string} parentId @param {string} targetId @returns {object[]} */
-export function moveCategory(items, sourceId, parentId, targetId = '') {
+/** 移动分类并更新父分类。 */
+export function moveCategory(items: Category[], sourceId: string, parentId: string, targetId = ''): Category[] {
   const from = items.findIndex(item => item.id === sourceId)
   if (from < 0 || sourceId === targetId) return items
   const next = items.slice()
@@ -131,16 +133,17 @@ export function moveCategory(items, sourceId, parentId, targetId = '') {
   return next
 }
 
-/** 验证 FunLink 备份的基本结构。 @param {unknown} value @returns {object} */
-export function validateState(value) {
-  if (!value || value.version !== 1 || !Array.isArray(value.categories) || !Array.isArray(value.bookmarks)) {
+/** 验证 FunLink 备份的基本结构。 */
+export function validateState(value: unknown): RawState {
+  const candidate = value as Partial<RawState> | null | undefined
+  if (!candidate || candidate.version !== 1 || !Array.isArray(candidate.categories) || !Array.isArray(candidate.bookmarks)) {
     throw new Error('不是有效的 FunLink 备份')
   }
-  return value
+  return candidate as RawState
 }
 
-/** 判断网址是否使用允许的协议。 @param {unknown} value @returns {boolean} */
-export function isSafeUrl(value) {
+/** 判断网址是否使用允许的协议。 */
+export function isSafeUrl(value: unknown): boolean {
   try {
     normalizeUrl(value)
     return true
@@ -149,13 +152,13 @@ export function isSafeUrl(value) {
   }
 }
 
-/** 从浏览器书签 HTML 中提取去重后的网址。 @param {string} html @returns {{title: string, url: string}[]} */
-export function parseBookmarkHtml(html) {
+/** 从浏览器书签 HTML 中提取去重后的网址。 */
+export function parseBookmarkHtml(html: string): { title: string, url: string }[] {
   const document = new DOMParser().parseFromString(html, 'text/html')
-  return [...document.querySelectorAll('a[href]')].flatMap(anchor => {
+  return [...document.querySelectorAll('a[href]')].flatMap((anchor): { title: string, url: string }[] => {
     try {
       const url = normalizeUrl(anchor.getAttribute('href'))
-      return [{ title: anchor.textContent.trim() || new URL(url).hostname, url }]
+      return [{ title: anchor.textContent?.trim() || new URL(url).hostname, url }]
     } catch {
       return []
     }
