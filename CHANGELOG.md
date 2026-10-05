@@ -1,5 +1,15 @@
 # 更新日志
 
+## 未发布
+
+### 修复
+
+- 补齐 `useFunLink.ts` 组合式函数的 TypeScript 类型标注并启用 `noImplicitAny`，
+  公开 API 不再有隐式 any 参数。
+- 补充 `useFunLink.ts` 主对外交互 API（备份恢复/导入去重/导出明文确认/
+  uTools 快开与主搜索）和 `preload.js` WebDAV 网络调用（重定向跳转上限、
+  错误信息脱敏）的单元测试，覆盖此前完全没有测试的部分。
+
 ## 1.0.0
 
 ### 新增
