@@ -22,8 +22,8 @@ export function useFunLink() {
   const search = ref('')
   const toast = reactive({ visible: false, message: '', error: false })
   const keywordPrompt = reactive({ visible: false, title: '', value: '' })
-  let keywordResolve = null
-  let toastTimer
+  let keywordResolve: ((value: string) => void) | null = null
+  let toastTimer: ReturnType<typeof setTimeout> | undefined
 
   const roots = computed(() => state.value.categories.filter(category => !category.parentId))
   const activeCategoryId = computed(() => state.value.currentView.startsWith('category:')
@@ -33,7 +33,7 @@ export function useFunLink() {
     const category = state.value.categories.find(item => item.id === activeCategoryId.value)
     return category?.parentId || category?.id || ''
   })
-  const childrenOf = parentId => state.value.categories.filter(category => category.parentId === parentId)
+  const childrenOf = (parentId: string): Category[] => state.value.categories.filter(category => category.parentId === parentId)
   const secondaryCategories = computed(() => state.value.currentView.startsWith('category:') && activeRootId.value ? childrenOf(activeRootId.value) : [])
   const secondaryPosition = computed(() => state.value.categories.find(category => category.id === activeRootId.value)?.tabPosition || 'top')
   const trashCount = computed(() => state.value.bookmarks.filter(bookmark => bookmark.deletedAt).length)
@@ -66,14 +66,14 @@ export function useFunLink() {
     writeStorage(STORAGE_KEY, state.value)
   }
 
-  function showToast(message, error = false) {
+  function showToast(message: string, error = false) {
     clearTimeout(toastTimer)
     Object.assign(toast, { visible: true, message, error })
     toastTimer = setTimeout(() => { toast.visible = false }, 3200)
   }
 
   // Electron 不实现 window.prompt，站内搜索的关键词改用应用内对话框获取。
-  function askKeyword(title) {
+  function askKeyword(title: string) {
     return new Promise<string>(resolve => {
       keywordResolve = resolve
       Object.assign(keywordPrompt, { visible: true, title, value: '' })
@@ -87,7 +87,7 @@ export function useFunLink() {
     resolve?.(String(value).trim())
   }
 
-  function setView(view) {
+  function setView(view: string) {
     if (view.startsWith('category:')) {
       const categoryId = view.slice(9)
       const firstChild = childrenOf(categoryId)[0]
@@ -98,7 +98,7 @@ export function useFunLink() {
     saveState()
   }
 
-  function syncQuickFeature(bookmark) {
+  function syncQuickFeature(bookmark: Bookmark) {
     if (!window.utools?.setFeature) return
     const code = `open-link@${bookmark.id}`
     if (!bookmark.quick) {
@@ -112,17 +112,17 @@ export function useFunLink() {
   // 整体替换数据后（恢复备份 / 重置）重建快开入口，否则旧入口还在、新的一个都没注册。
   function syncAllQuickFeatures() {
     if (!window.utools?.setFeature) return
-    window.utools.getFeatures?.()?.forEach(feature => {
+    window.utools.getFeatures?.()?.forEach((feature: { code?: string }) => {
       if (feature?.code?.startsWith('open-link@')) window.utools.removeFeature?.(feature.code)
     })
     state.value.bookmarks.filter(bookmark => bookmark.quick && !bookmark.deletedAt).forEach(syncQuickFeature)
   }
 
-  function saveBookmark(input, afterId = null) {
+  function saveBookmark(input: Partial<Bookmark>, afterId: string | null = null) {
     const id = input.id || createId('bookmark')
     const previous = state.value.bookmarks.find(bookmark => bookmark.id === id)
     const categoryIds = normalizeCategoryIds(input.categoryIds || (input.categoryId ? [input.categoryId] : []))
-    const bookmark = { ...previous, ...input, id, categoryId: categoryIds[0], categoryIds, note: previous?.note || '', deletedAt: null }
+    const bookmark: Bookmark = { ...previous, ...input, id, categoryId: categoryIds[0], categoryIds, note: previous?.note || '', deletedAt: null }
     if (previous) state.value.bookmarks[state.value.bookmarks.indexOf(previous)] = bookmark
     else if (afterId) state.value.bookmarks.splice(state.value.bookmarks.findIndex(item => item.id === afterId) + 1, 0, bookmark)
     else state.value.bookmarks.push(bookmark)
@@ -131,7 +131,7 @@ export function useFunLink() {
     showToast(previous ? '网址已更新' : '网址已添加')
   }
 
-  function saveNote(id, note) {
+  function saveNote(id: string, note: string) {
     const bookmark = state.value.bookmarks.find(item => item.id === id)
     if (!bookmark) return
     bookmark.note = note
@@ -139,14 +139,14 @@ export function useFunLink() {
     showToast('笔记已保存')
   }
 
-  function urlsOf(bookmark) {
-    const extras = Array.isArray(bookmark.urls) ? bookmark.urls : []
-    return [bookmark.url, ...extras.map(item => (typeof item === 'string' ? item : item?.value))]
+  function urlsOf(bookmark: Bookmark): string[] {
+    const extras: unknown[] = Array.isArray(bookmark.urls) ? bookmark.urls : []
+    return [bookmark.url, ...extras.map((item: unknown) => (typeof item === 'string' ? item : (item as { value?: string })?.value))]
       .map(url => String(url || '').trim())
-      .filter(url => url && isSafeUrl(url))
+      .filter((url): url is string => Boolean(url) && isSafeUrl(url))
   }
 
-  function openUrl(bookmark, url) {
+  function openUrl(bookmark: Bookmark, url: string) {
     const followsDefault = !bookmark.browser || bookmark.browser === 'default'
     const useInner = bookmark.browser === 'inner' || (followsDefault && state.value.settings.browser.isOpenIn)
     if (useInner && window.utools?.ubrowser) {
@@ -157,7 +157,7 @@ export function useFunLink() {
     } else window.open(url, '_blank', 'noopener,noreferrer')
   }
 
-  async function openLink(bookmark, query = '') {
+  async function openLink(bookmark: Bookmark, query = '') {
     const urls = urlsOf(bookmark)
     if (!urls.length) return
     let keyword = String(query || '').trim() || search.value.trim()
@@ -168,20 +168,20 @@ export function useFunLink() {
     urls.forEach(url => openUrl(bookmark, url.replaceAll('{q}', encodeURIComponent(keyword))))
   }
 
-  function toggleFavorite(bookmark) {
+  function toggleFavorite(bookmark: Bookmark) {
     bookmark.favorite = !bookmark.favorite
     saveState()
     showToast(bookmark.favorite ? '已加入常用' : '已取消常用')
   }
 
-  function toggleQuick(bookmark) {
+  function toggleQuick(bookmark: Bookmark) {
     bookmark.quick = !bookmark.quick
     syncQuickFeature(bookmark)
     saveState()
     showToast(bookmark.quick ? '已开启网页快开' : '已关闭网页快开')
   }
 
-  function moveToTrash(bookmark) {
+  function moveToTrash(bookmark: Bookmark) {
     bookmark.previousCategoryIds = categoryIdsOf(bookmark)
     bookmark.deletedAt = Date.now()
     bookmark.quick = false
@@ -190,7 +190,7 @@ export function useFunLink() {
     showToast('已移到废纸篓')
   }
 
-  function restoreBookmark(bookmark) {
+  function restoreBookmark(bookmark: Bookmark) {
     bookmark.categoryIds = (bookmark.previousCategoryIds || []).filter(id => id === 'cat@default' || state.value.categories.some(category => category.id === id))
     bookmark.categoryId = bookmark.categoryIds[0] || 'cat@default'
     if (!bookmark.categoryIds.length) bookmark.categoryIds = ['cat@default']
@@ -200,7 +200,7 @@ export function useFunLink() {
     showToast('网址已恢复')
   }
 
-  function deleteBookmark(bookmark) {
+  function deleteBookmark(bookmark: Bookmark) {
     if (!window.confirm(`永久删除“${bookmark.title}”？此操作无法撤销。`)) return
     state.value.bookmarks = state.value.bookmarks.filter(item => item.id !== bookmark.id)
     window.utools?.removeFeature?.(`open-link@${bookmark.id}`)
@@ -217,12 +217,12 @@ export function useFunLink() {
     showToast('废纸篓已清空')
   }
 
-  function reorderBookmarks(sourceId, targetId) {
+  function reorderBookmarks(sourceId: string, targetId: string) {
     state.value.bookmarks = moveItem(state.value.bookmarks, sourceId, targetId)
     saveState()
   }
 
-  function categoryCount(categoryId) {
+  function categoryCount(categoryId: string) {
     return state.value.bookmarks.filter(bookmark => !bookmark.deletedAt && categoryIdsOf(bookmark).includes(categoryId)).length
   }
 
@@ -235,7 +235,7 @@ export function useFunLink() {
     saveState()
   }
 
-  function categoryAction(id, action, value) {
+  function categoryAction(id: string, action: string, value: any) {
     const category = state.value.categories.find(item => item.id === id)
     if (!category) return
     if (action === 'rename') {
@@ -263,7 +263,7 @@ export function useFunLink() {
         state.value.categories[targetIndex] = category
       }
     }
-    if (action === 'position' && ['left', 'right', 'top', 'bottom'].includes(value)) category.tabPosition = value
+    if (action === 'position' && ['left', 'right', 'top', 'bottom'].includes(value)) category.tabPosition = value as Category['tabPosition']
     if (action === 'move' && value) state.value.categories = moveCategory(state.value.categories, id, value.parentId, value.targetId)
     saveState()
   }
@@ -272,7 +272,7 @@ export function useFunLink() {
     document.documentElement.dataset.theme = state.value.theme
   }
 
-  function setTheme(theme) {
+  function setTheme(theme: AppState['theme']) {
     state.value.theme = theme
     saveState()
     applyTheme()
@@ -284,12 +284,12 @@ export function useFunLink() {
   }
 
   function clearCookies() {
-    window.utools?.db?.allDocs?.('cookie@')?.forEach(document => window.utools.db.remove(document._id))
+    window.utools?.db?.allDocs?.('cookie@')?.forEach((document: { _id: string }) => window.utools.db.remove(document._id))
     showToast('cookies已清空！')
   }
 
   function cycleTheme() {
-    const order = ['system', 'light', 'dark']
+    const order: AppState['theme'][] = ['system', 'light', 'dark']
     setTheme(order[(order.indexOf(state.value.theme) + 1) % order.length])
     showToast({ system: '跟随系统主题', light: '已切换浅色主题', dark: '已切换深色主题' }[state.value.theme])
   }
@@ -354,7 +354,7 @@ export function useFunLink() {
       showToast(`已导入 ${bookmarks.length} 个网址`)
       return true
     } catch (error) {
-      showToast(error.message, true)
+      showToast((error as Error).message, true)
       return false
     }
   }
@@ -372,10 +372,10 @@ export function useFunLink() {
     return true
   }
 
-  function setupUtools({ addBookmark }) {
+  function setupUtools({ addBookmark }: { addBookmark: (input: Partial<Bookmark>) => void }) {
     window.utools?.setExpendHeight?.(558)
-    window.utools?.setSubInput?.(({ text }) => { search.value = text || '' }, '搜索卡片', true)
-    window.funlink?.onEnter(async action => {
+    window.utools?.setSubInput?.(({ text }: { text?: string }) => { search.value = text || '' }, '搜索卡片', true)
+    window.funlink?.onEnter(async (action: { code?: string, payload?: string }) => {
       if (action.code?.startsWith('open-link@')) {
         const bookmark = state.value.bookmarks.find(item => item.id === action.code.slice(10))
         if (bookmark) {
@@ -389,11 +389,11 @@ export function useFunLink() {
       if (action.code === 'add-link') addBookmark({ url: String(action.payload || '').trim() })
       if (action.code === 'search-link') search.value = String(action.payload || '')
     })
-    window.utools?.onMainPush?.(({ payload }) => state.value.bookmarks
+    window.utools?.onMainPush?.(({ payload }: { payload?: string }) => state.value.bookmarks
       .filter(bookmark => !bookmark.deletedAt && !bookmark.url.includes('{q}') && bookmarkMatches(bookmark, payload, state.value.settings.search))
       .slice(0, 6)
       .map(bookmark => ({ icon: 'logo.png', text: bookmark.title, title: bookmark.description || displayHost(bookmark.url), bookmarkId: bookmark.id })),
-    ({ payload, option }) => {
+    ({ payload, option }: { payload?: string, option: { bookmarkId: string } }) => {
       const bookmark = state.value.bookmarks.find(item => item.id === option.bookmarkId)
       if (bookmark) openLink(bookmark, payload)
     })
@@ -412,12 +412,13 @@ export function useFunLink() {
   }
 }
 
-/** 从网址提取展示用主机名。 @param {string} url @returns {string} */
-export function displayHost(url) {
+/** 从网址提取展示用主机名。 */
+export function displayHost(url: string): string {
   try { return new URL(url).hostname || url } catch { return url }
 }
 
-/** 校验颜色值，非法值回退到默认颜色。 @param {unknown} value @returns {string} */
-export function safeColor(value) {
-  return /^(#[\da-f]{3,8}|rgba?\([\d\s.,%]+\))$/i.test(value || '') ? value : '#16b8c7'
+/** 校验颜色值，非法值回退到默认颜色。 */
+export function safeColor(value: unknown): string {
+  const text = String(value || '')
+  return /^(#[\da-f]{3,8}|rgba?\([\d\s.,%]+\))$/i.test(text) ? text : '#16b8c7'
 }
