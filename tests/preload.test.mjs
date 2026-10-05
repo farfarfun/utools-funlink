@@ -1,0 +1,67 @@
+import { test } from 'vitest'
+import assert from 'node:assert/strict'
+import http from 'node:http'
+
+// preload.js 在模块顶层调用 utools.onPluginEnter，必须在 import 之前先把
+// 全局 utools / window 占位好，否则一加载就会因为 utools 未定义而报错。
+globalThis.utools = { onPluginEnter: () => {} }
+globalThis.window = {}
+await import('../utools/preload.js')
+const funlink = globalThis.window.funlink
+
+function withServer(handler, run) {
+  return new Promise((resolve, reject) => {
+    const server = http.createServer(handler)
+    server.listen(0, '127.0.0.1', () => {
+      const { port } = server.address()
+      run(`http://127.0.0.1:${port}`).then(resolve, reject).finally(() => server.close())
+    })
+  })
+}
+
+test('checkUrl 对真实 HTTP 服务返回实际状态码', async () => {
+  await withServer((req, res) => { res.writeHead(204); res.end() }, async base => {
+    const status = await funlink.checkUrl(`${base}/ping`)
+    assert.equal(status, 204)
+  })
+})
+
+test('重定向跟随到达次数上限后明确报错，而不是死循环挂起（短链/死链场景）', async () => {
+  await withServer((req, res) => {
+    // 自己重定向自己，制造一个无限重定向循环。
+    res.writeHead(302, { Location: req.url })
+    res.end()
+  }, async base => {
+    const start = Date.now()
+    await assert.rejects(() => funlink.checkUrl(`${base}/loop`))
+    // request() 默认最多跟 3 次重定向，循环应该在几次请求内就报错退出，
+    // 而不是挂起等到网络层超时（10 秒）。
+    assert.ok(Date.now() - start < 2000, '重定向次数耗尽应该很快报错，不应该一直挂起')
+  })
+})
+
+test('WebDAV 请求失败时，错误信息不会泄露 URL 或账号里的用户名密码', async () => {
+  await withServer((req, res) => { res.writeHead(500); res.end('boom') }, async base => {
+    const baseWithCreds = base.replace('http://', 'http://url-user:url-pass@')
+    await assert.rejects(
+      () => funlink.webdavBackup({ host: baseWithCreds, username: 'wd-user', password: 'wd-pass' }, '{}'),
+      error => {
+        assert.ok(!error.message.includes('url-user'), `错误信息泄露了 URL 里的用户名: ${error.message}`)
+        assert.ok(!error.message.includes('url-pass'), `错误信息泄露了 URL 里的密码: ${error.message}`)
+        return true
+      },
+    )
+  })
+})
+
+test('webdavList 正常返回服务端响应的原始内容', async () => {
+  const body = '<?xml version="1.0"?><d:multistatus xmlns:d="DAV:"></d:multistatus>'
+  await withServer((req, res) => {
+    assert.equal(req.method, 'PROPFIND')
+    res.writeHead(207, { 'Content-Type': 'application/xml' })
+    res.end(body)
+  }, async base => {
+    const result = await funlink.webdavList({ host: base, username: 'u', password: 'p' })
+    assert.equal(result, body)
+  })
+})
