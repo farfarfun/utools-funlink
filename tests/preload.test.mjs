@@ -65,3 +65,43 @@ test('webdavList 正常返回服务端响应的原始内容', async () => {
     assert.equal(result, body)
   })
 })
+
+test('WebDAV 跨源重定向不会转发认证请求', async () => {
+  let redirectedRequest = false
+  await withServer((targetReq, targetRes) => {
+    redirectedRequest = true
+    targetRes.writeHead(204)
+    targetRes.end()
+  }, async target => {
+    await withServer((redirectReq, redirectRes) => {
+      redirectRes.writeHead(302, { Location: target })
+      redirectRes.end()
+    }, async base => {
+      await assert.rejects(
+        () => funlink.webdavBackup({ host: base, username: 'u', password: 'p' }, '{}'),
+        /必须与配置服务器同源/,
+      )
+      assert.equal(redirectedRequest, false)
+    })
+  })
+})
+
+test('WebDAV 服务端返回的跨源 href 不会携带认证访问', async () => {
+  let targetRequest = false
+  await withServer((targetReq, targetRes) => {
+    targetRequest = true
+    targetRes.writeHead(204)
+    targetRes.end()
+  }, async target => {
+    await withServer((sourceReq, sourceRes) => {
+      sourceRes.writeHead(204)
+      sourceRes.end()
+    }, async base => {
+      await assert.rejects(
+        () => funlink.webdavRestore({ host: base, username: 'u', password: 'p' }, `${target}/backup.json`),
+        /必须与配置服务器同源/,
+      )
+      assert.equal(targetRequest, false)
+    })
+  })
+})
