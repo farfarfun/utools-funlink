@@ -65,7 +65,7 @@ function requestError(context, error) {
   return new Error(`${context}: ${error.message}`, { cause: error })
 }
 
-function request(url, { method = 'GET', headers = {}, body = '', timeout = 10000, redirects = 3 } = {}) {
+function request(url, { method = 'GET', headers = {}, body = '', timeout = 10000, redirects = 3, allowedOrigin } = {}) {
   return new Promise((resolve, reject) => {
     let target
     try {
@@ -73,13 +73,14 @@ function request(url, { method = 'GET', headers = {}, body = '', timeout = 10000
     } catch (error) {
       return reject(requestError(`${method} 无效地址`, error))
     }
+    if (allowedOrigin && target.origin !== allowedOrigin) return reject(new Error(`${method} WebDAV 地址必须与配置服务器同源`))
     const context = requestContext(method, target)
     const client = target.protocol === 'https:' ? https : http
     const req = client.request(target, { method, headers }, response => {
       if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location && redirects) {
         response.resume()
         try {
-          return resolve(request(new URL(response.headers.location, target).href, { method, headers, body, timeout, redirects: redirects - 1 }))
+          return resolve(request(new URL(response.headers.location, target).href, { method, headers, body, timeout, redirects: redirects - 1, allowedOrigin }))
         } catch (error) {
           return reject(requestError(context, error))
         }
@@ -109,6 +110,19 @@ function webdavTarget(config, file = '') {
   return new URL(`${WEBDAV_DIRECTORY}/${file}`, base).href
 }
 
+function webdavUrl(config, target) {
+  const base = new URL(config.host)
+  const url = new URL(target, base)
+  if (!['http:', 'https:'].includes(base.protocol) || url.origin !== base.origin) throw new Error('WebDAV 地址必须与配置服务器同源')
+  return url.href
+}
+
+function webdavRequest(config, target, options = {}) {
+  const base = new URL(config.host)
+  if (!['http:', 'https:'].includes(base.protocol)) throw new Error('WebDAV 仅支持 HTTP 和 HTTPS 服务器')
+  return request(webdavUrl(config, target), { ...options, allowedOrigin: base.origin })
+}
+
 function webdavHeaders(config, extra = {}) {
   return { Authorization: `Basic ${Buffer.from(`${config.username}:${config.password}`).toString('base64')}`, ...extra }
 }
@@ -135,10 +149,10 @@ window.funlink = {
     return fs.readFileSync(path.resolve(result[0]), 'utf8')
   },
   async webdavBackup(config, content) {
-    await request(webdavTarget(config), { method: 'MKCOL', headers: webdavHeaders(config) })
+    await webdavRequest(config, webdavTarget(config), { method: 'MKCOL', headers: webdavHeaders(config) })
     const now = new Date()
     const stamp = [now.getFullYear(), now.getMonth() + 1, now.getDate(), now.getHours(), now.getMinutes(), now.getSeconds()].join('-')
-    await request(webdavTarget(config, `${stamp}.json`), {
+    await webdavRequest(config, webdavTarget(config, `${stamp}.json`), {
       method: 'PUT',
       headers: webdavHeaders(config, { 'Content-Type': 'application/json; charset=utf-8', 'Content-Length': Buffer.byteLength(content) }),
       body: content,
@@ -146,17 +160,17 @@ window.funlink = {
   },
   async webdavList(config) {
     const xml = '<?xml version="1.0"?><d:propfind xmlns:d="DAV:"><d:prop><d:displayname/><d:getcontentlength/><d:getlastmodified/></d:prop></d:propfind>'
-    return (await request(webdavTarget(config), {
+    return (await webdavRequest(config, webdavTarget(config), {
       method: 'PROPFIND',
       headers: webdavHeaders(config, { Depth: '1', 'Content-Type': 'application/xml', 'Content-Length': Buffer.byteLength(xml) }),
       body: xml,
     })).body
   },
   async webdavRestore(config, href) {
-    return (await request(new URL(href, config.host).href, { headers: webdavHeaders(config) })).body
+    return (await webdavRequest(config, href, { headers: webdavHeaders(config) })).body
   },
   async webdavDelete(config, href) {
-    await request(new URL(href, config.host).href, { method: 'DELETE', headers: webdavHeaders(config) })
+    await webdavRequest(config, href, { method: 'DELETE', headers: webdavHeaders(config) })
   },
   async checkUrl(url) {
     const result = await request(url, { method: 'HEAD' })
